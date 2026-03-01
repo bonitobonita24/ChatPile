@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3d6cd-0114-8320-b6e3-6b13455e3622
 - Title: Qwen2.5 vs DeepSeek Coder
-- Captured: 2026-03-01T07:04:58.001Z
+- Captured: 2026-03-01T07:08:01.835Z
 - URL: https://chatgpt.com/c/69a3d6cd-0114-8320-b6e3-6b13455e3622
 
 ---
