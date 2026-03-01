@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a30943-3324-8324-9dd5-cb2b5da9dd46
 - Title: Jerlan Projects - Mega Prompt Optimization Tips
-- Captured: 2026-03-01T09:04:33.933Z
+- Captured: 2026-03-01T09:07:37.128Z
 - URL: https://chatgpt.com/g/g-p-698ace27fcb08191853e12827657b08e-jerlan-projects/c/69a30943-3324-8324-9dd5-cb2b5da9dd46
 
 ---
@@ -4272,4 +4272,291 @@ Explain whether running a 14B quantized model would help
 Design your full hybrid routing architecture
 
 Tell me which one you want.
+
+## User
+
+- Show you how to configure Continue so Chat = local, Agent = API automatically
+- also please tell me again your recent response about the additional extensions and how to setup that might help me more about my hybrid development but still prioritizing the free options first
+- Design your full hybrid routing architecture
+
+## Assistant
+
+Cool — here’s a practical, copy/paste-able setup that does all 3:
+
+Continue: Chat = local, Plan/Agent = API automatically (or as close as Continue allows)
+
+Extra extensions + setup for hybrid dev (free-first)
+
+Full hybrid routing architecture (local-first + API escalation + optional “one endpoint” router)
+
+1) Continue: Chat = local, Agent = API
+Reality check (so you don’t get stuck)
+
+Continue’s exact config knobs vary by version. Some builds support “role-based” model assignment (chat vs agent vs autocomplete), and some don’t.
+
+So I’ll give you two working approaches:
+
+Approach A (best): Role-based routing in config (if your Continue version supports it)
+
+Approach B (guaranteed): Two profiles + 1-click switch (works on all versions)
+
+Where to put the config (WSL)
+
+Use this path inside WSL:
+
+Bash
+mkdir -p ~/.continue
+nano ~/.continue/config.json
+✅ Approach A: Single config with “roles” (if supported)
+
+Paste this config (adjust provider for your API):
+
+JSON
+{
+  "models": [
+    {
+      "title": "Local Qwen 2.5 Coder 7B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://127.0.0.1:11434"
+    },
+    {
+      "title": "API - Agent Brain",
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  ],
+
+  "defaultModel": "Local Qwen 2.5 Coder 7B",
+
+  "modelRoles": {
+    "chat": "Local Qwen 2.5 Coder 7B",
+    "edit": "Local Qwen 2.5 Coder 7B",
+    "agent": "API - Agent Brain",
+    "plan": "API - Agent Brain"
+  }
+}
+
+If your Continue build doesn’t recognize modelRoles, it will ignore it (no harm), and you’ll use Approach B.
+
+API key in WSL:
+
+Bash
+echo 'export OPENAI_API_KEY="YOUR_KEY"' >> ~/.bashrc
+source ~/.bashrc
+✅ Approach B: Two “profiles” (works on all Continue versions)
+
+You keep two config files and switch by renaming (fast + reliable).
+
+Create:
+
+1) Local config
+
+~/.continue/config.local.json
+
+JSON
+{
+  "models": [
+    {
+      "title": "Local Qwen 2.5 Coder 7B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://127.0.0.1:11434"
+    }
+  ],
+  "defaultModel": "Local Qwen 2.5 Coder 7B"
+}
+2) Hybrid config
+
+~/.continue/config.hybrid.json
+
+JSON
+{
+  "models": [
+    {
+      "title": "Local Qwen 2.5 Coder 7B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://127.0.0.1:11434"
+    },
+    {
+      "title": "API - Agent Brain",
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  ],
+  "defaultModel": "Local Qwen 2.5 Coder 7B"
+}
+
+Then choose which one is active by copying it into config.json:
+
+Bash
+cp ~/.continue/config.hybrid.json ~/.continue/config.json
+# or
+cp ~/.continue/config.local.json ~/.continue/config.json
+
+Reload VS Code after switching:
+
+Ctrl+Shift+P → Developer: Reload Window
+
+How to use it in practice:
+
+Keep hybrid config active
+
+In Continue, use local for normal chat/editing
+
+When you need Agent/Plan reliability, select API - Agent Brain for that run (Continue will remember the last model used in many cases)
+
+This is the simplest “it always works” workflow.
+
+2) Free-first extension + setup recommendations (for hybrid spec-driven dev)
+
+You already have a good set. Here’s what I’d add (all free) and why:
+
+Must-have (quality + fewer “dumb mistakes”)
+
+ESLint – catches real bugs early
+
+Prettier – consistent formatting (reduces diff noise)
+
+EditorConfig – keeps formatting consistent across tools
+
+Error Lens – shows TS/ESLint issues inline (big productivity)
+
+GitLens (optional) – makes diffs/history easier when agents change many files
+
+Spec-driven helpers
+
+Markdown All in One – for your project.memory.md, specs, ADRs
+
+YAML – editing inputs.yml (even if schema warnings are annoying)
+
+dotenv (or “DotENV”) – helps manage .env/.env.example cleanly
+
+API/testing workflow
+
+You already have Thunder Client ✅ (great)
+
+Optional: REST Client (simple .http files, very lightweight)
+
+Minimal “agent safety”
+
+If you’re using Cline/agents that can modify lots of files:
+
+Todo Tree (you already have TODOs) ✅
+
+Optional: Conventional Commits – makes automated commit messages consistent
+
+Strong advice: don’t install huge extension packs inside WSL. Keep it lean. It keeps VS Code responsive.
+
+3) Full hybrid routing architecture (B + C together)
+
+This is the architecture that gives you:
+
+Local-first (free) for 80–95% of work
+
+API escalation only when needed
+
+True autonomous agent runtime for “spec → plan → code → test → iterate”
+
+The system (3 layers)
+Layer 1 — IDE layer (interactive)
+
+Continue: fast chat/edit with local Qwen
+
+Cline: task runner (edits files + runs commands)
+
+Layer 2 — Router layer (optional but recommended)
+
+A single “OpenAI-compatible endpoint” that everything can point to.
+
+Two modes:
+
+Mode 1 (simple, no router):
+
+Continue points directly to Ollama for local
+
+Continue/Cline uses API provider when needed (manual switch)
+
+Mode 2 (clean, one endpoint): LiteLLM router
+
+Continue + Cline + LangGraph all point to LiteLLM
+
+LiteLLM routes:
+
+local/qwen → Ollama
+
+api/gpt-mini → OpenAI (or any API)
+
+This makes your whole setup consistent.
+
+Layer 3 — Autonomous agent runtime (LangGraph)
+
+Runs in WSL as a CLI tool and can be “phase-based” exactly like your playbook.
+
+Example commands:
+
+pnpm agent:scaffold
+
+pnpm agent:prisma
+
+pnpm agent:logging
+
+pnpm agent:uploads
+
+pnpm agent:outbox
+
+Each command:
+
+reads inputs.yml + project.memory.md
+
+generates plan
+
+edits repo
+
+runs verification commands (pnpm validate:inputs, pnpm lint, pnpm build)
+
+fixes failures
+
+outputs a summary + next steps
+
+When to escalate to API automatically
+
+In your LangGraph agent, escalate if:
+
+build/test fails twice
+
+output grows beyond a threshold (big refactor)
+
+dependency/tooling ambiguity is detected
+
+you request “architecture decision” or “security review”
+
+This keeps API costs tiny.
+
+Recommended “best” starting choice
+
+Given your goals and current setup:
+
+Start with Mode 1 (no router) — fastest to adopt
+
+Once you like the workflow, add LiteLLM to unify everything
+
+Quick question (so I don’t steer you wrong)
+
+For the “API - Agent Brain”, do you prefer:
+
+OpenAI (very reliable agent planning), or
+
+DeepSeek (often cheaper), or
+
+“I don’t care, just lowest cost that works”?
+
+If you answer that in one line, I’ll give you:
+
+the exact Continue + Cline provider settings for your choice
+
+and (if you want) the LiteLLM router config mapping local + API models under one URL.
 
