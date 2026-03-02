@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Review
-- Captured: 2026-03-02T13:18:50.233Z
+- Captured: 2026-03-02T13:21:53.031Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -5329,4 +5329,470 @@ Update your full MASTER prompt to include this as a strict rule
 Or design a "platform metadata sync rule" that keeps branding consistent across devcontainer, README, and package.json
 
 Which one do you want?
+
+## User
+
+Update your full MASTER prompt to include this as a strict rule
+
+## Assistant
+
+Perfect. Below is your UPDATED CANONICAL MASTER PROMPT — V3.3.
+
+This version:
+
+Keeps everything from V3.2
+
+Adds a strict rule for dynamic devcontainer naming
+
+Ensures it is set once during initial scaffold
+
+Prevents future automatic mutation
+
+Keeps platform/app separation clean
+
+Preserves strict AI logging + CI guard enforcement
+
+You can copy this entire block into your notes as the final authoritative system.
+
+🔷 SPEC-DRIVEN PLATFORM MASTER PROMPT — V3.3 (CANONICAL FINAL)
+
+This system builds:
+
+A reusable internal platform template
+
+A full working application
+
+CI with enforcement
+
+DevOps + SRE baseline
+
+Docker Compose-first deployment
+
+Kubernetes scaffold (inactive until enabled)
+
+Multi-tenant toggle
+
+Strict AI change logging
+
+Strict governance guardrails
+
+No silent regeneration.
+No hidden memory.
+No platform drift.
+
+🔒 GLOBAL ARCHITECTURE RULES
+Rule 1 — Feature Source of Truth (Human Only)
+
+All business features must be written only in:
+
+Code
+docs/PRODUCT.md
+
+No feature descriptions in:
+
+project.memory.md
+
+inputs.yml
+
+CHANGELOG
+
+code comments
+
+Rule 2 — Technical Contract Source of Truth
+Code
+inputs.yml
+
+AI-generated from PRODUCT.md.
+
+Never manually edited except through controlled AI regeneration.
+
+Rule 3 — Platform Invariants
+Code
+project.memory.md
+
+Contains platform rules only.
+Never feature history.
+Never change log.
+Rarely modified.
+
+Rule 4 — Mandatory AI Change Logging
+
+Every AI change MUST update:
+
+Code
+docs/CHANGELOG_AI.md
+docs/IMPLEMENTATION_MAP.md
+
+If code changes without log updates → violation.
+
+Rule 5 — Mandatory Pre-Change Review
+
+Before any AI change:
+
+AI must read:
+
+docs/PRODUCT.md
+
+inputs.yml
+
+docs/CHANGELOG_AI.md
+
+docs/IMPLEMENTATION_MAP.md
+
+project.memory.md
+
+Then reason.
+Then modify only impacted modules.
+
+Rule 6 — Compose-First Deployment
+
+Docker Compose is default for:
+
+dev
+
+stage
+
+prod
+
+Compose is primary production mechanism unless explicitly changed.
+
+Rule 7 — Kubernetes Scaffold Only
+
+K8s manifests are generated but inactive until:
+
+YAML
+deploy:
+  k8s:
+    enabled: true
+
+Compose always remains fallback.
+
+Rule 8 — Multi-Tenant Toggle
+YAML
+tenancy:
+  mode: single | multi
+
+Upgradeable later via controlled spec update.
+
+Rule 9 — Dynamic Devcontainer Naming (NEW STRICT RULE)
+
+During initial scaffold generation only:
+
+Replace the placeholder:
+
+JSON
+"name": "Spec-Driven Platform - {{APP_NAME}}"
+
+with:
+
+JSON
+"name": "Spec-Driven Platform - <inputs.yml.app.name>"
+
+After initial generation:
+
+.devcontainer/devcontainer.json must NOT be automatically modified
+
+Feature updates must NOT change devcontainer config
+
+Devcontainer belongs to platform layer, not feature layer
+
+This prevents branding drift and infrastructure churn.
+
+🟦 PHASE 0 — BOOTSTRAP (ONE TIME)
+STEP 0.1 — Create Repo
+
+Create GitHub repo
+Clone locally
+Open in VS Code
+
+STEP 0.2 — Manual Bootstrap Files
+.gitignore
+gitignore
+node_modules
+dist
+.next
+.turbo
+.env
+.env.*
+coverage
+*.log
+.DS_Store
+*.tsbuildinfo
+.nvmrc
+Plain text
+20
+package.json
+JSON
+{
+  "name": "spec-driven-platform",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": { "node": ">=20" }
+}
+.devcontainer/devcontainer.json (PLACEHOLDER VERSION)
+JSON
+{
+  "name": "Spec-Driven Platform - {{APP_NAME}}",
+
+  "build": { "dockerfile": "Dockerfile" },
+
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "remoteUser": "node",
+  "updateRemoteUserUID": true,
+
+  "mounts": [
+    "source=pnpm-store,target=/home/node/.pnpm-store,type=volume"
+  ],
+
+  "runArgs": ["--ulimit", "nofile=65536:65536"],
+
+  "postCreateCommand": "corepack enable && pnpm -v"
+}
+.devcontainer/Dockerfile
+dockerfile
+FROM mcr.microsoft.com/devcontainers/typescript-node:20
+
+ENV PNPM_HOME="/usr/local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+
+ENV PNPM_STORE_PATH=/home/node/.pnpm-store
+RUN pnpm config set store-dir ${PNPM_STORE_PATH}
+
+RUN apt-get update && \
+    apt-get install -y git curl ca-certificates netcat-traditional && \
+    rm -rf /var/lib/apt/lists/*
+project.memory.md
+Markdown
+# Project Memory (V3.3)
+
+Spec-driven architecture.
+Compose-first deployment.
+K8s scaffold disabled by default.
+Security baseline mandatory.
+Observability baseline mandatory.
+Tenant-ready architecture.
+AI must log all changes.
+AI must review logs before changes.
+Devcontainer name set only during initial scaffold.
+🟦 PHASE 1 — HUMAN FEATURE INPUT
+
+Create folder:
+
+Code
+docs/
+docs/PRODUCT.md
+Markdown
+# Product Definition
+
+## App Name
+## Purpose
+## Target Users
+## Core Entities
+## User Roles
+## Main Workflows
+## Realtime Features
+## Background Jobs
+## Storage Requirements
+## Data Sensitivity
+## Tenancy Model
+## Environments
+## Domain / Base URL
+docs/CHANGELOG_AI.md
+Markdown
+# AI Change Log
+
+All AI-generated changes must be recorded here.
+
+Format:
+
+## YYYY-MM-DD
+- Why change was made
+- What modules changed
+- What tables/migrations changed
+- What routes/pages changed
+- What jobs/infra changed
+docs/IMPLEMENTATION_MAP.md
+Markdown
+# Implementation Map
+
+Snapshot of system state.
+
+List:
+- Entities / tables
+- API modules & routes
+- Web pages & layout modules
+- Jobs & queues
+- Storage buckets
+- Auth & RBAC
+- Tenancy handling
+- Observability endpoints
+- Deployment entrypoints
+🟦 PHASE 2 — SPEC DISCOVERY
+
+Open Devcontainer.
+
+Copilot Chat:
+
+Plain text
+Read:
+- docs/PRODUCT.md
+- project.memory.md
+- docs/CHANGELOG_AI.md
+- docs/IMPLEMENTATION_MAP.md
+
+Ask structured technical questions.
+Do NOT generate files yet.
+
+After answering:
+
+Plain text
+Generate:
+- inputs.yml (version 3)
+- inputs.schema.json
+
+Replace {{APP_NAME}} in .devcontainer/devcontainer.json
+with inputs.yml.app.name (initial scaffold only).
+
+Compose default.
+K8s scaffold inactive.
+Multi-tenant upgrade supported.
+
+Output YAML + JSON only.
+🟦 PHASE 3 — GENERATE PLATFORM + APP
+
+Copilot Chat:
+
+Plain text
+Generate full platform scaffold from:
+- inputs.yml
+- project.memory.md
+- docs/PRODUCT.md
+
+STRICT:
+1) Review CHANGELOG_AI.md and IMPLEMENTATION_MAP.md.
+2) Generate web, api, prisma, bullmq, logging, tracing.
+3) Generate compose dev/stage/prod.
+4) Generate inactive k8s scaffold.
+5) Update CHANGELOG_AI.md.
+6) Update IMPLEMENTATION_MAP.md.
+7) Do NOT modify devcontainer after this.
+🟦 PHASE 4 — INSTALL & VALIDATE
+
+Inside devcontainer:
+
+Bash
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm tools:validate-inputs
+🟦 PHASE 5 — RUN INFRA
+
+Host:
+
+Bash
+docker compose -f deploy/compose/dev/docker-compose.yml up -d
+🟦 PHASE 6 — FEATURE UPDATE LOOP
+
+When PRODUCT.md changes:
+
+Plain text
+FEATURE UPDATE
+
+1) Read PRODUCT.md
+2) Read inputs.yml
+3) Read CHANGELOG_AI.md
+4) Read IMPLEMENTATION_MAP.md
+5) Modify only impacted modules.
+6) Update CHANGELOG_AI.md.
+7) Update IMPLEMENTATION_MAP.md.
+Do NOT regenerate entire repo.
+Do NOT modify devcontainer.
+🟦 PHASE 7 — CI ENFORCEMENT (STRICT)
+
+CI must:
+
+lint
+
+typecheck
+
+test
+
+build
+
+tools:validate-inputs
+
+AND include:
+
+tools/check-product-sync.mjs
+
+Logic:
+
+If PRODUCT.md changed
+AND inputs.yml did not change
+OR CHANGELOG_AI.md did not change
+→ FAIL CI
+
+🟦 PHASE 8 — MULTI-TENANT UPGRADE
+
+Edit inputs.yml:
+
+YAML
+tenancy:
+  mode: multi
+
+Run:
+
+Bash
+pnpm tools:validate-inputs
+
+Update impacted modules only.
+
+Log changes.
+
+🟦 PHASE 9 — ENABLE K8S
+
+Edit inputs.yml:
+
+YAML
+deploy:
+  k8s:
+    enabled: true
+
+Generate manifests.
+
+Keep Compose intact.
+
+Log changes.
+
+✅ FINAL GUARANTEE
+
+This system now ensures:
+
+✔ Full app generation
+✔ Full platform generation
+✔ Dynamic devcontainer naming (initial only)
+✔ Strict AI change logging
+✔ Mandatory implementation map updates
+✔ CI discipline enforcement
+✔ Compose-first production
+✔ K8s-ready scaffold
+✔ Multi-tenant upgrade path
+✔ No infrastructure drift
+
+If you want next level control, we can now add:
+
+A semantic diff engine (platform:apply)
+
+A commit-message enforcement system
+
+A governance model for team collaboration
+
+Or a production-grade release strategy
+
+Where do you want to go next?
 
