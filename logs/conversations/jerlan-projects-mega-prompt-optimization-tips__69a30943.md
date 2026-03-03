@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a30943-3324-8324-9dd5-cb2b5da9dd46
 - Title: Jerlan Projects - Mega Prompt Optimization Tips
-- Captured: 2026-03-03T16:13:58.645Z
+- Captured: 2026-03-03T16:17:02.117Z
 - URL: https://chatgpt.com/g/g-p-698ace27fcb08191853e12827657b08e-jerlan-projects/c/69a30943-3324-8324-9dd5-cb2b5da9dd46
 
 ---
@@ -5227,5 +5227,40 @@ Because:
 
 9B will often be slower on 6GB VRAM (more CPU offload risk)
 
-The model is not strictly
+The model is not strictly “coder-only” (it’s a broader model with a vision encoder per card) 
+Hugging Face
+
+Your dev workflow benefits from speed + tight context most of the time
+
+Best possible model stack for your exact machine (free-first, hybrid-ready)
+Tier 1: Daily driver (local, fast)
+
+qwen2.5-coder:7b (Ollama)
+Use for: editing files, Nest/Next scaffolds, quick refactors, Prisma schema drafting.
+
+Tier 2: Quality mode (local, slower)
+
+Qwen3.5-9B @ Q4_K_M, tuned with num_ctx=4096–8192
+Use for: harder reasoning, bigger refactors, more careful code review.
+
+Tier 3: Agent/Plan reliability (cheap API fallback)
+
+gpt-4o-mini (or similar low-cost model)
+Use only when: Cline/Continue “agent” workflows need reliable tool-calling and structured outputs.
+
+Optional “single-endpoint” routing (nice upgrade)
+
+Add a router later (e.g., LiteLLM) so Continue/Cline/LangGraph can all hit one OpenAI-compatible URL and you just choose local/* vs api/*.
+
+What I need from you to make this concrete
+
+Are you planning to run Qwen3.5-9B in Ollama, or via another runtime (llama.cpp / LM Studio)?
+
+What’s your current output of:
+
+Bash
+ollama list
+ollama --version
+
+With that, I can tell you the exact best path to get Qwen3.5-9B running (and which quantized variant to choose) while keeping performance sane on 6GB VRAM.
 
