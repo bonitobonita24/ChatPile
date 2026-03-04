@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Development
-- Captured: 2026-03-04T14:27:55.145Z
+- Captured: 2026-03-04T14:30:58.297Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -9953,5 +9953,15 @@ validate-inputs ✅
 
 check-env ✅
 
-check-product-s
+check-product-sync (strictest: PRODUCT requires inputs+schema+logs+map) ✅
+
+lint/typecheck/test/build ✅
+
+Not included (by design) because they’re not CI requirements:
+
+docker compose (host-only) ✅ correct
+
+devcontainer steps ✅ correct
+
+If you want one more upgrade (optional but common for monorepos): I can add a matrix that runs turbo tasks with caching and separate jobs for faster feedback, while still keeping the strictest governance step up front.
 
