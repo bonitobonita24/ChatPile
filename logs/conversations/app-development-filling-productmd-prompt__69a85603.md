@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T12:45:35.074Z
+- Captured: 2026-03-05T12:48:39.586Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -14901,5 +14901,84 @@ Rate Limiting
 
 RATE_LIMIT_PUBLIC=30
 RATE_LIMIT_AUTH=120
-RATE_LIMIT_UPLOAD=
+RATE_LIMIT_UPLOAD=10
+
+
+### Kubernetes
+
+Disabled by default. K8s manifests/Helm chart to be scaffolded later for staging/production.
+
+---
+
+## 16. Implementation Phases
+
+### Phase 4A — Foundation (no module features)
+
+1. Monorepo scaffold (pnpm workspaces + Turbo)
+2. Docker Compose configuration
+3. Prisma schema: Tenant, User, Role, Permission, RolePermission, UserRole, AuditLog, Module, TenantModule, ModuleMenu
+4. Keycloak realm + client setup (dev)
+5. NestJS bootstrap: AuthModule, TenantModule, UserModule, RbacModule
+6. Tenant resolver middleware + guard chain
+7. Audit log interceptor
+8. Seed: roles, permissions, role-permissions, modules, menus
+9. Next.js bootstrap: auth flow, workspace layout, tenant context, sidebar navigation
+10. Dev-only seed: Calapan tenant, Blue Alliance tenant, test users
+
+### Phase 4B — Media & Reference Data
+
+1. MinIO bucket initialization
+2. Prisma schema: MediaObject, Barangay, Category
+3. MediaModule: upload endpoint, MinIO service, presigned URLs
+4. BullMQ setup: media-optimization queue + processor (Sharp pipeline)
+5. Seed: barangays (Calapan City), categories (6 types)
+6. ReferenceDataModule: barangay, category controllers/services
+
+### Phase 4C — FMS Module
+
+1. Prisma schema: Fisherfolk, FisherfolkCategory, FisherfolkPhoto, FisherfolkSignature
+2. FMS NestJS: FisherfolkController, FisherfolkService
+3. Fisherfolk CRUD endpoints (list, create, read, update, delete)
+4. Identity field protection (fms.identity.edit guard)
+5. Photo + signature upload integration (→ MediaObject)
+6. Merge fisherfolk workflow
+7. Next.js: FisherfolkListPage, RegisterPage, ProfilePage, EditPage
+8. FMS reports endpoints + UI
+
+### Phase 4D — FMS ID Printing
+
+1. Prisma schema: IDPrintTemplate, IDPrintJob, IDPrintJobItem
+2. IdPrintController, IdPrintService
+3. BullMQ: id-print-jobs queue + processor (PDF rendering)
+4. Next.js: IdPrintingPage (search, multi-select, template select, job status polling)
+
+### Phase 4E — VMS Module
+
+1. Prisma schema: Vessel, PermitType, PermitApplication, PermitDocument, Species, LandingSite, CatchReport, CatchReportItem, Program, ProgramEnrollment, Distribution, DistributionItem
+2. VMS NestJS: all controllers + services
+3. Permit workflow (apply → review → approve → reject → print)
+4. Catch reporting endpoints
+5. Program management endpoints
+6. Seed: species (global), permit types (dev tenant)
+7. Next.js: all VMS pages
+8. BullMQ: export-jobs queue + processor
+
+### Phase 4F — Dashboards & Analytics
+
+1. LGU dashboard KPI endpoints (top 10)
+2. Global dashboard KPI endpoints
+3. Next.js: LGU DashboardPage, Global DashboardPage
+4. Chart components (using charting library TBD — Recharts or Chart.js)
+
+### Phase 4G — Administration & Polish
+
+1. User management UI
+2. Role management UI
+3. Reference data admin UI
+4. Audit log viewer UI (filterable, paginated)
+5. DLQ admin replay UI
+6. Rate limiting middleware
+7. CORS configuration per environment
+8. Error handling polish
+9. E2E test foundation
 
