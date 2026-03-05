@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T05:52:18.743Z
+- Captured: 2026-03-05T05:55:22.923Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -3975,4 +3975,569 @@ Add a rule: every record is scoped by tenantId/LGUId
 Barangays list is the fixed Calapan list (for now), but tenancy implies this could become “per LGU config” later if you expand beyond Calapan.
 
 If you want next, I can write the exact Enterprise Tenancy section you should paste into docs/PRODUCT.md (including entities like LGU, LGUModule, UserLGURole, and the isolation rules) without changing your existing module specs too much.
+
+## User
+
+- ok please do that but please make sure this is aligned to your PRODUCT.md template provided in the "SPEC-DRIVEN PLATFORM MASTER PROCESS — V6 STRICTEST (CANONICAL)"
+- for your reference, here's the copy of the PRODUCT.md you made from AI Spec-Driven App Development chat:
+
+# Product Definition
+
+## App Name
+## Purpose
+## Target Users
+## Core Entities
+## User Roles
+## Main Workflows (step-by-step)
+## Realtime Features (if any)
+## Background Jobs (if any)
+## Storage Requirements (types, size limits)
+## Data Sensitivity (PII? retention? export/delete?)
+## Tenancy Model (single / multi / undecided)
+## Environments Needed (dev / stage / prod)
+## Domain / Base URL Expectations (optional)
+
+## Assistant
+
+Perfect — thanks for clarifying the exact PRODUCT.md template from your SPEC-DRIVEN PLATFORM MASTER PROCESS — V6 STRICTEST (CANONICAL).
+I’ll now write the Enterprise PRODUCT.md Tenancy section using that exact template structure, so it integrates cleanly with your spec-driven pipeline.
+
+This is meant to be your root file:
+
+docs/PRODUCT.md
+
+and it will define:
+
+multi-LGU tenancy
+
+module ecosystem (FMS, VMS)
+
+workspace navigation
+
+global super-admin
+
+shared master data
+
+image optimization policy
+
+barangay constraints
+
+docs/PRODUCT.md
+Product Definition
+App Name
+
+Fisheries Management Enterprise System
+
+Purpose
+
+The Fisheries Management Enterprise System is a multi-tenant government operations platform designed to manage fisherfolk registries, vessels, permits, fisheries production records, and program interventions across multiple Local Government Units (LGUs).
+
+The system provides a unified workspace where operational modules such as the Fisherfolk Management System (FMS) and Vessel Management System (VMS) operate within a shared environment while maintaining strict data isolation per LGU. Each LGU can operate its own fisheries management processes while a central authority can oversee and administer the entire ecosystem.
+
+The system ensures consistent data governance, accurate identity records, and operational visibility for fisheries management and policy decision-making.
+
+Target Users
+1. Global System Administrator
+
+Top-level system authority that can manage all LGUs, modules, and users across the entire enterprise platform.
+
+Responsibilities:
+
+create and manage LGU tenants
+
+enable/disable modules per LGU
+
+manage global users and permissions
+
+access all system data across LGUs
+
+2. LGU Administrator
+
+Administrator for a specific municipality or LGU.
+
+Responsibilities:
+
+manage local users
+
+oversee module operations within the LGU
+
+monitor reports and dashboards
+
+configure reference data if permitted
+
+3. LGU Operational Staff
+
+Day-to-day system users such as:
+
+registration clerks
+
+fisheries officers
+
+enumerators
+
+permit processing staff
+
+Responsibilities:
+
+register fisherfolk
+
+manage vessels
+
+process permits
+
+record catch landings
+
+manage program distributions
+
+4. Data Analysts / Supervisors
+
+Users who primarily access reports and analytics.
+
+Responsibilities:
+
+review fisheries statistics
+
+analyze catch data
+
+generate operational reports
+
+Core Entities
+Tenant / LGU
+
+Represents a municipality or local government unit.
+
+Fields:
+
+id
+
+name
+
+province
+
+region
+
+country
+
+status
+
+createdAt
+
+Relationships:
+
+hasMany Users
+
+hasMany Fisherfolk
+
+hasMany Vessels
+
+hasMany Permits
+
+hasMany Programs
+
+hasMany CatchRecords
+
+Every operational record must include:
+
+tenantId
+
+to ensure strict data isolation between LGUs.
+
+User
+
+Fields:
+
+id
+
+tenantId
+
+name
+
+email
+
+role
+
+status
+
+createdAt
+
+Roles include:
+
+global_admin
+
+lgu_admin
+
+user
+
+viewer
+
+Module
+
+Represents system applications such as FMS or VMS.
+
+Fields:
+
+id
+
+name
+
+code
+
+description
+
+isActive
+
+Examples:
+
+FMS (Fisherfolk Management System)
+
+VMS (Vessel Management System)
+
+LGUModule
+
+Controls which modules are enabled for each LGU.
+
+Fields:
+
+id
+
+tenantId
+
+moduleCode
+
+isEnabled
+
+createdAt
+
+Example:
+
+tenantId: Calapan City
+moduleCode: FMS
+isEnabled: true
+Shared Reference Data
+
+Certain entities are shared across modules:
+
+Barangay
+
+Species
+
+Landing Sites
+
+Permit Types
+
+Gear Types
+
+Barangay (Reference)
+
+Barangay selections must follow the official list for Calapan City.
+
+The allowed values are:
+
+Balingayan
+Balite
+Baruyan
+Batino
+Bayanan I
+Bayanan II
+Biga
+Bondoc
+Bucayao
+Buhuan
+Bulusan
+Sta. Rita
+Calero
+Camansihan
+Camilmil
+Canubing I
+Canubing II
+Comunal
+Guinobatan
+Gulod
+Gutad
+Ibaba East
+Ibaba West
+Ilaya
+Lalud
+Lazareto
+Libis
+Lumangbayan
+Mahal Na Pangalan
+Maidlang
+Malad
+Malamig
+Managpi
+Masipit
+Nag-Iba I
+Navotas
+Pachoca
+Palhi
+Panggalaan
+Parang
+Patas
+Personas
+Puting Tubig
+Salong
+San Antonio
+San Vicente Central
+San Vicente East
+San Vicente North
+San Vicente South
+San Vicente West
+Sta. Cruz
+Sta. Isabel
+Sto. Niño
+Sapul
+Silonay
+Sta. Maria Village
+Suqui
+Tawagan
+Tawiran
+Tibag
+Wawa
+Nag-Iba II
+
+Barangay Display Format
+
+Anywhere a barangay is displayed in the system:
+
+Brgy. {BarangayName}, City of Calapan
+
+Example:
+
+Brgy. Camilmil, City of Calapan
+User Roles
+
+System roles operate across modules but are scoped by tenant.
+
+global_admin
+
+manages all LGUs
+
+manages modules
+
+full system visibility
+
+lgu_admin
+
+manages users within LGU
+
+oversees operations for the LGU
+
+user
+
+Operational staff access.
+
+Permissions depend on module role.
+
+viewer
+
+Read-only access.
+
+Main Workflows (step-by-step)
+LGU Creation
+
+Global admin creates a new LGU tenant.
+
+System generates a tenant record.
+
+Admin selects modules to enable for the LGU.
+
+LGU administrators and staff users are created.
+
+Module Access
+
+User logs into the system.
+
+System identifies user's tenant.
+
+System loads modules enabled for that tenant.
+
+Workspace menu displays accessible modules.
+
+Workspace Navigation
+
+All modules appear as menus inside a unified workspace.
+
+Example navigation:
+
+Dashboard
+
+Fisherfolk Management System
+   Fisherfolk List
+   Register Fisherfolk
+   Reports
+   ID Printing
+
+Vessel Management System
+   Vessels
+   Permit Applications
+   Permit Renewals
+   Catch Reports
+   Programs
+
+Analytics
+   Catch Analytics
+   Registration Reports
+
+Administration
+   Users
+   Roles
+   Reference Data
+   Audit Logs
+
+Menus are only visible if the user has permission.
+
+Realtime Features (if any)
+
+Not required for initial system versions.
+
+Possible future realtime features:
+
+dashboard live updates
+
+permit approval notifications
+
+program distribution tracking
+
+Background Jobs (if any)
+Image Optimization Job
+
+Triggered whenever an image is uploaded.
+
+Steps:
+
+Retrieve uploaded image from storage.
+
+Validate image type and size.
+
+Remove EXIF metadata.
+
+Resize image to predefined display sizes.
+
+Generate variants:
+
+thumbnail
+
+display version
+
+Save optimized images.
+
+Update media metadata records.
+
+This process ensures storage efficiency and faster loading across devices.
+
+Storage Requirements (types, size limits)
+
+Supported uploads:
+
+images
+
+documents (future)
+
+Image limits:
+
+max upload size: 10MB
+
+recommended resolution limit: 8000px
+
+Image optimization rules:
+
+strip EXIF metadata
+
+resize to display variants
+
+compress to web-optimized formats (JPEG or WebP)
+
+Modules that will use uploads include:
+
+FMS (photo, signature)
+
+VMS (vessel images)
+
+permits (document scans)
+
+program distributions (proof images)
+
+Data Sensitivity (PII? retention? export/delete?)
+
+The system contains personally identifiable information (PII).
+
+Examples:
+
+names
+
+birthdates
+
+contact numbers
+
+addresses
+
+identification numbers
+
+images
+
+Data governance requirements:
+
+audit logging of critical operations
+
+controlled editing of identity fields
+
+restricted exports
+
+soft deletion policies
+
+Tenancy Model (single / multi / undecided)
+
+Tenancy Mode: Multi
+
+Each LGU operates as a separate tenant with isolated data.
+
+All operational records must contain:
+
+tenantId
+
+Data isolation rules:
+
+users can only access records within their tenant
+
+modules operate independently per tenant
+
+global admins can access all tenants
+
+Environments Needed (dev / stage / prod)
+
+Required environments:
+
+development
+staging
+production
+Domain / Base URL Expectations (optional)
+
+Example structure:
+
+app.domain.com
+
+Optional tenant routing models:
+
+app.domain.com/{tenant}
+
+or
+
+{tenant}.domain.com
+
+✅ This fully aligns with your SPEC-DRIVEN V6 PRODUCT.md template, while also integrating:
+
+LGU multi-tenant architecture
+
+module ecosystem
+
+workspace menu model
+
+barangay constraint
+
+ID printing menu
+
+image optimization policy
+
+If you want next, the best architectural move is for me to generate a matching docs/modules/vms/PRODUCT.md that plugs perfectly into this enterprise spec and your FMS module.
 
