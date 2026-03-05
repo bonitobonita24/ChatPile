@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T13:34:38.179Z
+- Captured: 2026-03-05T13:37:42.413Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -16199,4 +16199,448 @@ Just say:
 "Give the safe PHASE 4 prompt."
 
 That will prevent 90% of AI-generated architecture bugs.
+
+## User
+
+Give the safe PHASE 4 prompt.
+
+## Assistant
+
+Perfect — this is the most important prompt in the whole system, because this is where Copilot actually generates the code.
+
+If this prompt is weak, Copilot can:
+
+break multi-tenant isolation
+
+skip RBAC
+
+bypass module registry
+
+ignore media pipeline
+
+create wrong Prisma relations
+
+So below is a SAFE PHASE 4 PROMPT designed specifically for your platform.
+
+This prompt forces Copilot to follow your specs exactly.
+
+🟦 PHASE 4 — SAFE SPEC-DRIVEN CODE GENERATION
+
+Copy-paste this entire prompt into Copilot Chat.
+
+Writing
+
+We are now entering PHASE 4 — SPEC-DRIVEN CODE GENERATION for the Blue Ocean Governance Platform.
+
+This platform follows Spec-Driven Platform V6 STRICTEST rules.
+
+IMPORTANT:
+You MUST strictly follow the specification files.
+Do NOT invent architecture.
+Do NOT skip modules.
+Do NOT generate code that violates the tenancy or RBAC rules.
+
+1. Read ALL specification files
+
+Read the following files carefully before generating any code:
+
+docs/PRODUCT.md
+
+docs/MODULE_REGISTRY.md
+
+docs/PERMISSION_REGISTRY.md
+
+docs/ENTITY_REGISTRY.md
+
+docs/IMPLEMENTATION_MAP.md
+
+docs/CHANGELOG_AI.md
+
+project.memory.md (if present)
+
+The IMPLEMENTATION_MAP.md is the source of truth for code generation.
+
+2. Confirm architecture before generating code
+
+Confirm that the platform architecture is:
+
+Frontend:
+
+Next.js 14 App Router
+
+Backend:
+
+NestJS 10+
+
+Database:
+
+PostgreSQL
+
+ORM:
+
+Prisma
+
+Auth:
+
+Keycloak (OIDC)
+
+Storage:
+
+MinIO (S3 compatible)
+
+Queues:
+
+BullMQ with Redis
+
+Image processing:
+
+Sharp
+
+PDF generation:
+
+Puppeteer or @react-pdf/renderer
+
+Package management:
+
+pnpm monorepo with turbo
+
+If anything conflicts with IMPLEMENTATION_MAP.md,
+ask questions before generating code.
+
+3. Enforce Multi-Tenant Architecture
+
+This system is strictly multi-tenant.
+
+Tenant routing is determined by subdomain:
+
+{lgu}.fish.powerbyte.app
+bluealliance.fish.powerbyte.app
+
+Tenant resolution flow:
+
+Frontend:
+
+Next.js middleware extracts subdomain
+
+sends header
+
+x-tenant-slug: {tenantSlug}
+
+Backend:
+
+TenantResolverMiddleware resolves slug → tenantId
+
+attaches tenantId to request
+
+TenantScopeInterceptor:
+
+automatically injects tenantId into Prisma queries
+
+Example:
+
+WHERE tenantId = request.tenantId
+
+Cross-tenant access must be blocked by default.
+
+Only global_admin may query across tenants.
+
+4. Respect Module Boundaries
+
+Modules defined in MODULE_REGISTRY:
+
+fms (Fisherfolk Management System)
+
+vms (Vessel Management System)
+
+bluesentinel (future module)
+
+Routes must follow:
+
+/fms/*
+/vms/*
+/bluesentinel/*
+
+Do NOT mix module logic.
+
+5. Respect RBAC System
+
+Permissions come from:
+
+docs/PERMISSION_REGISTRY.md
+
+Permission format:
+
+{module}.{resource}.{action}
+
+Example:
+
+fms.fisherfolk.create
+vms.vessel.update
+
+Controllers must use:
+
+@RequirePermissions('permission.key')
+
+Guards must include:
+
+TenantResolverMiddleware
+JwtAuthGuard
+TenantGuard
+PermissionsGuard
+6. Media Upload Pipeline
+
+Uploads use:
+
+MinIO
+BullMQ
+Sharp
+
+Flow:
+
+Client upload → API → MinIO temp bucket → queue job → Sharp processing → optimized variants → permanent bucket.
+
+Variants:
+
+Photo:
+
+display 512x512
+
+thumb 128x128
+
+Signature:
+
+max width 600px
+
+Original files are NOT stored.
+
+MediaObject table tracks:
+
+processingStatus
+purpose
+variant
+7. ID Printing System
+
+ID printing must be asynchronous.
+
+Flow:
+
+POST /fms/id-print/jobs
+→ queue id-print-jobs
+→ worker generates PDF
+→ store in MinIO
+→ update IDPrintJob status
+
+Max:
+
+4 fisherfolk per page
+200mm × 300mm layout
+8. Queue System
+
+BullMQ queues:
+
+media-optimization
+export-jobs
+id-print-jobs
+
+Retry policy:
+
+3 retries
+exponential backoff
+DLQ enabled
+9. Generate Code in Correct Order
+
+Generate code in phases.
+
+Phase 4A — Foundation
+
+Generate:
+
+Prisma schema for:
+
+Tenant
+User
+Role
+Permission
+RolePermission
+UserRole
+Module
+TenantModule
+ModuleMenu
+AuditLog
+
+Generate NestJS modules:
+
+AuthModule
+TenantModule
+UserModule
+RbacModule
+ModuleRegistryModule
+
+Generate middleware:
+
+tenant-resolver.middleware.ts
+tenant.guard.ts
+permissions.guard.ts
+audit-log.interceptor.ts
+Phase 4B — Media System
+
+Generate:
+
+MediaObject model
+MediaModule
+MinioService
+MediaController
+BullMQ worker
+Sharp processing pipeline
+Phase 4C — FMS
+
+Generate:
+
+Fisherfolk model
+FisherfolkCategory
+FisherfolkPhoto
+FisherfolkSignature
+
+Generate:
+
+FisherfolkController
+FisherfolkService
+
+Endpoints:
+
+GET /fms/fisherfolk
+POST /fms/fisherfolk
+PATCH /fms/fisherfolk/:id
+DELETE /fms/fisherfolk/:id
+POST /fms/fisherfolk/:id/merge
+Phase 4D — ID Printing
+
+Generate:
+
+IDPrintTemplate
+IDPrintJob
+IDPrintJobItem
+IdPrintController
+IdPrintService
+
+Worker:
+
+id-print-jobs.processor.ts
+Phase 4E — VMS
+
+Generate:
+
+Vessel
+PermitApplication
+PermitDocument
+CatchReport
+CatchReportItem
+Program
+ProgramEnrollment
+Distribution
+DistributionItem
+
+Controllers:
+
+VesselController
+PermitController
+CatchReportController
+ProgramController
+Phase 4F — Dashboards
+
+Generate:
+
+DashboardModule
+LguDashboardController
+GlobalDashboardController
+
+KPI endpoints defined in IMPLEMENTATION_MAP.
+
+10. Follow Monorepo Structure
+
+Code must match this structure:
+
+apps/web
+apps/api
+packages/database
+packages/shared
+packages/config
+
+Prisma must live in:
+
+packages/database/prisma
+11. DO NOT Generate Everything At Once
+
+Start with:
+
+Phase 4A — Foundation
+
+Generate:
+
+Prisma schema
+
+NestJS bootstrap
+
+Auth
+
+Tenant resolver
+
+RBAC
+
+Stop after Phase 4A.
+
+Wait for confirmation before continuing.
+
+12. Output Format
+
+Show generated files with:
+
+FILE: path/to/file.ts
+
+Then code block.
+
+Example:
+
+FILE: apps/api/src/modules/tenant/tenant.service.ts
+Start with:
+PHASE 4A — FOUNDATION GENERATION
+
+Generate only those components.
+Stop after completion and wait for confirmation.
+
+What will happen after you run this
+
+Copilot will start generating things like:
+
+packages/database/prisma/schema.prisma
+apps/api/src/modules/auth
+apps/api/src/modules/tenant
+apps/api/src/common/middleware
+apps/api/src/common/guards
+
+This will create the foundation of the entire platform.
+
+What I recommend you do now
+
+1️⃣ Commit your specs
+
+Bash
+git add .
+git commit -m "spec freeze before phase 4"
+
+2️⃣ Paste the SAFE PHASE 4 PROMPT into Copilot
+
+3️⃣ Let Copilot generate Phase 4A
+
+4️⃣ Paste the result here
+
+I will audit the generated architecture before you proceed.
+
+This avoids huge refactors later.
+
+If you want, I can also show you something extremely powerful next:
+
+How to make Copilot automatically enforce tenant safety in Prisma so developers can NEVER accidentally run cross-tenant queries.
+
+This is how Stripe and Shopify protect their multi-tenant systems.
 
