@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T09:20:05.995Z
+- Captured: 2026-03-05T09:23:09.665Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -10400,4 +10400,140 @@ update your specs if needed
 prevent architectural mistakes
 
 This step will greatly reduce rework later.
+
+## User
+
+here's the first copilot question see attached image
+
+## Assistant
+
+Great — this is exactly how Phase 2 Discovery should look. Copilot is asking the right questions. Let's answer them cleanly and correctly so the architecture stays aligned with everything we designed.
+
+You can paste the answers below directly into Copilot.
+
+Answer for Copilot Question A (Platform identity & environments)
+
+A1 — UI Workspace Name
+
+Keep as:
+
+Blue Ocean Governance Platform
+
+No change.
+
+A2 — Base Domains
+
+Confirm the following environments:
+
+Development
+
+dev.fish.powerbyte.app
+
+Staging
+
+stage.fish.powerbyte.app
+
+Production
+
+fish.powerbyte.app
+
+A3 — Tenant Subdomain Routing
+
+Confirmed.
+
+Tenant routing pattern:
+
+{lgu}.fish.powerbyte.app
+
+Example:
+
+calapan.fish.powerbyte.app
+
+Global governance access:
+
+bluealliance.fish.powerbyte.app
+
+A4 — Local Development Tenant Routing
+
+Select option:
+
+Hosts file + query param fallback
+
+Explanation for Copilot:
+
+Primary local development approach:
+
+Use hosts file mapping to simulate production subdomains.
+
+Example hosts entries:
+
+127.0.0.1 calapan.localhost
+127.0.0.1 bluealliance.localhost
+127.0.0.1 dev.localhost
+
+The application detects the tenant from the subdomain.
+
+Example:
+
+http://calapan.localhost:3000
+
+Fallback mechanism for development and testing:
+
+Allow optional query parameter override:
+
+http://localhost:3000/?tenant=calapan
+
+Rules:
+
+If subdomain exists → use subdomain tenant.
+
+If no subdomain → check ?tenant= query parameter.
+
+If neither exists → default to development tenant.
+
+This ensures:
+
+realistic tenant routing
+
+easier debugging
+
+no environment mismatch with production.
+
+Why option 4 is the correct choice
+
+Option 4 (Hosts + query fallback) is best practice because:
+
+Feature	Result
+Real subdomain simulation	✅
+Works with cookies/auth	✅
+Works with Keycloak redirects	✅
+Easy testing without editing hosts	✅
+Matches production routing	✅
+
+Using subpaths only (/tenant/calapan) would break the subdomain tenancy model we designed.
+
+What will happen next
+
+Copilot will continue asking questions such as:
+
+Keycloak realm
+
+JWT claim mapping
+
+storage buckets
+
+background job queues
+
+CORS
+
+rate limits
+
+media upload limits
+
+observability
+
+That is exactly what we want before generating code.
+
+When the next question appears, send it here again.
+I'll help you answer it so the architecture stays consistent with all the specs we built.
 
