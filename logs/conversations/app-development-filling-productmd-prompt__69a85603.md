@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T15:49:49.464Z
+- Captured: 2026-03-05T15:52:54.178Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -17485,4 +17485,229 @@ With this schema + Prisma middleware:
 “How to generate all Prisma models automatically from your ENTITY_REGISTRY.md so Copilot never diverges from your specs.”
 
 That will make your spec-driven development workflow extremely powerful.
+
+## User
+
+you said:
+
+1️⃣ File that must be replaced
+
+Open this file in your repo:
+
+packages/database/prisma/schema.prisma
+
+You will replace the entire contents of that file.
+
+...but where is the details that we will use to override our minor items
+
+## Assistant
+
+Great question — and you’re right to stop here. 👍
+You should NOT blindly overwrite schema.prisma because your project already has detailed specs (PRODUCT.md, IMPLEMENTATION_MAP.md, ENTITY_REGISTRY.md, etc.). Those contain the “minor items” like fields, relationships, enums, and workflows.
+
+So the correct process is:
+
+Specs → Prisma schema → migration
+
+Not the other way around.
+
+Let me clarify exactly where the details come from and how to safely override the file.
+
+1️⃣ Where the schema details actually come from
+
+Your Prisma schema should be derived from these spec files:
+
+Main sources
+docs/ENTITY_REGISTRY.md
+docs/MODULE_REGISTRY.md
+docs/PERMISSION_REGISTRY.md
+docs/IMPLEMENTATION_MAP.md
+
+But the most direct source for Prisma is:
+
+docs/IMPLEMENTATION_MAP.md
+
+Specifically:
+
+Section you already pasted earlier
+3. Entities → Prisma Models
+
+That section lists:
+
+Spec Entity	Prisma Model
+Tenant	Tenant
+User	User
+Role	Role
+Permission	Permission
+RolePermission	RolePermission
+UserRole	UserRole
+AuditLog	AuditLog
+Module	Module
+TenantModule	TenantModule
+ModuleMenu	ModuleMenu
+Barangay	Barangay
+Category	Category
+Species	Species
+LandingSite	LandingSite
+PermitType	PermitType
+MediaObject	MediaObject
+Fisherfolk	Fisherfolk
+FisherfolkCategory	FisherfolkCategory
+FisherfolkPhoto	FisherfolkPhoto
+FisherfolkSignature	FisherfolkSignature
+IDPrintTemplate	IDPrintTemplate
+IDPrintJob	IDPrintJob
+IDPrintJobItem	IDPrintJobItem
+Vessel	Vessel
+PermitApplication	PermitApplication
+PermitDocument	PermitDocument
+CatchReport	CatchReport
+CatchReportItem	CatchReportItem
+Program	Program
+ProgramEnrollment	ProgramEnrollment
+Distribution	Distribution
+DistributionItem	DistributionItem
+
+Those are the models your Prisma schema must contain.
+
+2️⃣ Where the fields come from
+
+Fields come from:
+
+1️⃣ PRODUCT.md (workflow context)
+
+Example:
+
+Fisherfolk:
+- idNumber
+- rsbsaNumber
+- name
+- birthDate
+- barangay
+- categories
+2️⃣ IMPLEMENTATION_MAP.md
+
+Example you pasted:
+
+Fisherfolk
+Unique per tenant:
+- idNumber
+- rsbsaNumber
+- fullNameNormalized
+
+Which becomes:
+
+prisma
+@@unique([tenantId, idNumber])
+@@unique([tenantId, rsbsaNumber])
+@@unique([tenantId, fullNameNormalized])
+3️⃣ Where the enums come from
+
+Also from IMPLEMENTATION_MAP.md
+
+Example you pasted:
+
+enum VesselStatus { active, inactive, sold, scrapped }
+enum PermitAppStatus { draft, submitted, approved }
+enum MediaPurpose { fisherfolk_photo, signature }
+
+These become Prisma enums.
+
+4️⃣ Why I recommended replacing the whole file
+
+Because Prisma schemas break easily if partial edits are done.
+
+Replacing the whole file ensures:
+
+✔ tenant safety
+✔ correct relations
+✔ enums consistent
+✔ migrations clean
+
+But the replacement must still follow your specs.
+
+5️⃣ The correct safe workflow for you now
+
+Do NOT manually write the schema.
+
+Instead let Copilot generate it from your spec docs.
+
+Paste this prompt to Copilot.
+
+6️⃣ SAFE PROMPT (use this instead)
+
+Open Copilot and paste:
+
+We are implementing the Prisma database schema for the Blue Ocean Governance Platform.
+
+Use the following specification sources:
+
+docs/IMPLEMENTATION_MAP.md
+docs/MODULE_REGISTRY.md
+docs/PERMISSION_REGISTRY.md
+
+Particularly:
+
+Section "Entities → Prisma Models" in IMPLEMENTATION_MAP.md.
+
+Task:
+
+Generate the complete Prisma schema and replace the entire file:
+
+packages/database/prisma/schema.prisma
+
+Requirements:
+
+1) All tenant-scoped entities must include:
+
+tenantId String
+tenant Tenant @relation(fields: [tenantId], references: [id])
+
+@@index([tenantId])
+
+2) All identity or registration numbers must use composite uniqueness:
+
+@@unique([tenantId, field])
+
+Examples:
+Fisherfolk.idNumber
+Fisherfolk.rsbsaNumber
+Vessel.registrationNumber
+
+3) Global entities MUST NOT contain tenantId:
+
+Tenant
+Role
+Permission
+Module
+Category
+
+4) Include all entities listed in IMPLEMENTATION_MAP.md:
+
+Tenant
+User
+Role
+Permission
+RolePermission
+UserRole
+AuditLog
+Module
+TenantModule
+ModuleMenu
+Barangay
+Category
+Species
+LandingSite
+PermitType
+MediaObject
+Fisherfolk
+FisherfolkCategory
+FisherfolkPhoto
+FisherfolkSignature
+IDPrintTemplate
+IDPrintJob
+IDPrintJobItem
+Vessel
+PermitApplication
+PermitDocument
 
