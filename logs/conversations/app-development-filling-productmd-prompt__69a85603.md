@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T12:33:19.931Z
+- Captured: 2026-03-05T12:36:23.593Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -12891,4 +12891,1039 @@ PHASE 4 — Code Generation
 If you'd like, I can also show you one optional improvement that will make your system extremely robust:
 
 👉 The "Tenant Safety Lock" used by Stripe and Shopify that prevents developers from accidentally running queries without tenant filtering.
+
+## User
+
+- ok, just make it look more confusing. can you just give me a clear copy-paste replacement to that section i sent here? or I will just give you again the whole 1028 lines of markdown content and just give me the updated based on your suggested fix. Just give the new complete copy-paste IMPLEMENTATION_MAP.md
+
+- here's the complete copy of IMPLEMENTATION_MAP.md:
+
+# Implementation Map
+
+> Spec-Driven Platform V6 STRICTEST
+> Generated: 2026-03-05
+> Status: PLAN ONLY — no code generated yet
+
+This document maps every spec artifact (PRODUCT.md, MODULE_REGISTRY.md, PERMISSION_REGISTRY.md, ENTITY_REGISTRY.md, module PRODUCT.md files) to concrete implementation components.
+
+---
+
+## Table of Contents
+
+1. [Tech Stack](#1-tech-stack)
+2. [Repository Structure](#2-repository-structure)
+3. [Entities → Prisma Models](#3-entities--prisma-models)
+4. [Workflows → NestJS Modules](#4-workflows--nestjs-modules)
+5. [Screens → Next.js Routes](#5-screens--nextjs-routes)
+6. [Permissions → Guards & Policies](#6-permissions--guards--policies)
+7. [Tenancy → Subdomain Middleware](#7-tenancy--subdomain-middleware)
+8. [Auth → Keycloak Integration](#8-auth--keycloak-integration)
+9. [Uploads → MinIO + MediaObject + BullMQ](#9-uploads--minio--mediaobject--bullmq)
+10. [Queues → BullMQ Workers](#10-queues--bullmq-workers)
+11. [ID Printing → Template + Job + PDF](#11-id-printing--template--job--pdf)
+12. [Seed Data](#12-seed-data)
+13. [Dashboard & Reporting](#13-dashboard--reporting)
+14. [Security & Governance](#14-security--governance)
+15. [Infrastructure](#15-infrastructure)
+16. [Implementation Phases](#16-implementation-phases)
+
+---
+
+## 1. Tech Stack
+
+| Layer | Technology | Version |
+|---|---|---|
+| Frontend | Next.js (App Router) | 14+ |
+| Backend API | NestJS | 10+ |
+| ORM | Prisma | 5+ |
+| Database | PostgreSQL | 15+ |
+| Cache / Queue broker | Redis | 7+ |
+| Queue processor | BullMQ | 5+ |
+| Object storage | MinIO (S3-compatible) | latest |
+| Auth provider | Keycloak | latest |
+| PDF generation | Puppeteer or @react-pdf/renderer | TBD |
+| Image processing | Sharp | latest |
+| Container orchestration | Docker Compose (dev) | — |
+| Package manager | pnpm (monorepo) | 8+ |
+
+---
+
+## 2. Repository Structure
+
+
+/
+├── apps/
+│   ├── web/                          # Next.js frontend
+│   │   ├── app/
+│   │   │   ├── (auth)/               # Login/callback routes
+│   │   │   ├── (workspace)/          # Tenant workspace layout
+│   │   │   │   ├── dashboard/
+│   │   │   │   ├── fms/
+│   │   │   │   │   ├── fisherfolk/
+│   │   │   │   │   ├── register/
+│   │   │   │   │   ├── reports/
+│   │   │   │   │   └── id-printing/
+│   │   │   │   ├── vms/
+│   │   │   │   │   ├── vessels/
+│   │   │   │   │   ├── permits/
+│   │   │   │   │   ├── catch-reports/
+│   │   │   │   │   └── programs/
+│   │   │   │   ├── admin/
+│   │   │   │   │   ├── users/
+│   │   │   │   │   ├── roles/
+│   │   │   │   │   ├── reference-data/
+│   │   │   │   │   └── audit-logs/
+│   │   │   │   └── analytics/
+│   │   │   └── (bluealliance)/       # Blue Alliance global workspace
+│   │   │       ├── dashboard/
+│   │   │       ├── tenants/
+│   │   │       └── analytics/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── lib/
+│   │   │   ├── auth/
+│   │   │   ├── tenant/
+│   │   │   └── api-client/
+│   │   └── middleware.ts              # Subdomain tenant resolver
+│   │
+│   └── api/                           # NestJS backend
+│       └── src/
+│           ├── main.ts
+│           ├── app.module.ts
+│           ├── common/
+│           │   ├── guards/
+│           │   │   ├── jwt-auth.guard.ts
+│           │   │   ├── permissions.guard.ts
+│           │   │   └── tenant.guard.ts
+│           │   ├── decorators/
+│           │   │   ├── permissions.decorator.ts
+│           │   │   ├── current-user.decorator.ts
+│           │   │   └── current-tenant.decorator.ts
+│           │   ├── interceptors/
+│           │   │   ├── audit-log.interceptor.ts
+│           │   │   └── tenant-scope.interceptor.ts
+│           │   ├── middleware/
+│           │   │   ├── tenant-resolver.middleware.ts
+│           │   │   └── rate-limit.middleware.ts
+│           │   ├── filters/
+│           │   │   └── global-exception.filter.ts
+│           │   └── pipes/
+│           │       └── validation.pipe.ts
+│           ├── modules/
+│           │   ├── tenant/
+│           │   │   ├── tenant.module.ts
+│           │   │   ├── tenant.controller.ts
+│           │   │   ├── tenant.service.ts
+│           │   │   └── dto/
+│           │   ├── auth/
+│           │   │   ├── auth.module.ts
+│           │   │   ├── auth.service.ts
+│           │   │   ├── jwt.strategy.ts
+│           │   │   └── keycloak.config.ts
+│           │   ├── user/
+│           │   │   ├── user.module.ts
+│           │   │   ├── user.controller.ts
+│           │   │   ├── user.service.ts
+│           │   │   └── dto/
+│           │   ├── rbac/
+│           │   │   ├── rbac.module.ts
+│           │   │   ├── role.controller.ts
+│           │   │   ├── role.service.ts
+│           │   │   ├── permission.service.ts
+│           │   │   └── dto/
+│           │   ├── module-registry/
+│           │   │   ├── module-registry.module.ts
+│           │   │   ├── module-registry.controller.ts
+│           │   │   ├── module-registry.service.ts
+│           │   │   ├── menu.controller.ts
+│           │   │   ├── menu.service.ts
+│           │   │   └── dto/
+│           │   ├── media/
+│           │   │   ├── media.module.ts
+│           │   │   ├── media.controller.ts
+│           │   │   ├── media.service.ts
+│           │   │   ├── minio.service.ts
+│           │   │   └── dto/
+│           │   ├── fms/
+│           │   │   ├── fms.module.ts
+│           │   │   ├── fisherfolk.controller.ts
+│           │   │   ├── fisherfolk.service.ts
+│           │   │   ├── id-print.controller.ts
+│           │   │   ├── id-print.service.ts
+│           │   │   ├── fms-report.controller.ts
+│           │   │   ├── fms-report.service.ts
+│           │   │   └── dto/
+│           │   ├── vms/
+│           │   │   ├── vms.module.ts
+│           │   │   ├── vessel.controller.ts
+│           │   │   ├── vessel.service.ts
+│           │   │   ├── permit.controller.ts
+│           │   │   ├── permit.service.ts
+│           │   │   ├── catch-report.controller.ts
+│           │   │   ├── catch-report.service.ts
+│           │   │   ├── program.controller.ts
+│           │   │   ├── program.service.ts
+│           │   │   ├── vms-report.controller.ts
+│           │   │   ├── vms-report.service.ts
+│           │   │   └── dto/
+│           │   ├── reference-data/
+│           │   │   ├── reference-data.module.ts
+│           │   │   ├── barangay.controller.ts
+│           │   │   ├── barangay.service.ts
+│           │   │   ├── category.controller.ts
+│           │   │   ├── category.service.ts
+│           │   │   ├── species.controller.ts
+│           │   │   ├── species.service.ts
+│           │   │   ├── landing-site.controller.ts
+│           │   │   ├── landing-site.service.ts
+│           │   │   └── dto/
+│           │   ├── audit/
+│           │   │   ├── audit.module.ts
+│           │   │   ├── audit.controller.ts
+│           │   │   ├── audit.service.ts
+│           │   │   └── dto/
+│           │   └── dashboard/
+│           │       ├── dashboard.module.ts
+│           │       ├── lgu-dashboard.controller.ts
+│           │       ├── lgu-dashboard.service.ts
+│           │       ├── global-dashboard.controller.ts
+│           │       ├── global-dashboard.service.ts
+│           │       └── dto/
+│           └── workers/
+│               ├── media-optimization.processor.ts
+│               ├── export-jobs.processor.ts
+│               └── id-print-jobs.processor.ts
+│
+├── packages/
+│   ├── database/                      # Prisma schema + migrations
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma
+│   │   │   ├── migrations/
+│   │   │   └── seed.ts
+│   │   └── package.json
+│   ├── shared/                        # Shared types, enums, constants
+│   │   ├── src/
+│   │   │   ├── enums/
+│   │   │   ├── types/
+│   │   │   ├── constants/
+│   │   │   └── validators/
+│   │   └── package.json
+│   └── config/                        # Shared env/config schemas
+│       ├── src/
+│       └── package.json
+│
+├── docker/
+│   ├── docker-compose.yml
+│   ├── docker-compose.dev.yml
+│   ├── keycloak/
+│   │   └── realm-export.json
+│   └── minio/
+│       └── init-buckets.sh
+│
+├── docs/                              # Spec files (existing)
+├── tools/                             # Dev tooling/scripts
+├── .env.example
+├── pnpm-workspace.yaml
+└── turbo.json
+
+
+---
+
+## 3. Entities → Prisma Models
+
+Source: docs/ENTITY_REGISTRY.md + Phase 2 corrections
+
+### A) Platform / Tenancy Models
+
+| Entity (Spec) | Prisma Model | File Location | Notes |
+|---|---|---|---|
+| Tenant | Tenant | packages/database/prisma/schema.prisma | Unique subdomain, status enum |
+| User | User | schema.prisma | tenantId nullable (global_admin). Auth via Keycloak; local profile for RBAC |
+| Role | Role | schema.prisma | Seeded: global_admin, lgu_admin, user, viewer |
+| Permission | Permission | schema.prisma | Seeded from PERMISSION_REGISTRY. Key format: module.resource.action |
+| RolePermission | RolePermission | schema.prisma | Join: roleCode ↔ permissionKey |
+| UserRole | UserRole | schema.prisma | Join: userId + tenantId + roleCode |
+| AuditLog | AuditLog | schema.prisma | beforeJson/afterJson as Json type. Indexed on (tenantId, createdAt) |
+| Module | Module | schema.prisma | Seeded: fms, vms, bluesentinel |
+| TenantModule | TenantModule | schema.prisma | Controls module enablement per tenant |
+| ModuleMenu | ModuleMenu | schema.prisma | Seeded from spec; admin-editable later |
+
+### B) Shared Reference Data Models
+
+| Entity (Spec) | Prisma Model | tenantId | Notes |
+|---|---|---|---|
+| Barangay | Barangay | Optional (UUID, nullable) | Tenant-aware schema. Seeded globally with Calapan City list (tenantId = null). Per-tenant overrides later. |
+| Category | Category | **None** | Global seed only. No tenantId column. Codes: BOAT_OWNER_OPERATOR, CAPTURE_FISHING, GLEANING, VENDOR, FISH_PROCESSING, AQUACULTURE |
+| Species | Species | Optional (UUID, nullable) | Global seed initially (tenantId = null). Tenant overrides allowed later (tenantId set). Unique constraint: (tenantId, localName) |
+| LandingSite | LandingSite | Required (UUID) | Per-tenant reference data |
+| PermitType | PermitType | Required (UUID) | Per-tenant permit configuration |
+
+### C) Media Models
+
+| Entity (Spec) | Prisma Model | Notes |
+|---|---|---|
+| MediaObject | MediaObject | Variants: display, thumb (no original stored by default). Purpose enum. processingStatus tracks async pipeline. |
+
+### D) FMS Models
+
+| Entity (Spec) | Prisma Model | Notes |
+|---|---|---|
+| Fisherfolk | Fisherfolk | Identity source of truth. Unique per tenant: idNumber, rsbsaNumber, fullNameNormalized. Merge support. |
+| FisherfolkCategory | FisherfolkCategory | Join: fisherfolkId ↔ categoryId (multi-select) |
+| FisherfolkPhoto | FisherfolkPhoto | 1:1 per fisherfolk. Links to MediaObject display variant. |
+| FisherfolkSignature | FisherfolkSignature | 1:1 per fisherfolk. Links to MediaObject display variant. |
+| IDPrintTemplate | IDPrintTemplate | JSON layout definition. Per-tenant. Versioned. |
+| IDPrintJob | IDPrintJob | Async print request. Status: queued→processing→ready/failed. |
+| IDPrintJobItem | IDPrintJobItem | Selected fisherfolk (max 4, slotIndex 1..4) |
+
+### E) VMS Models
+
+| Entity (Spec) | Prisma Model | Notes |
+|---|---|---|
+| Vessel | Vessel | Linked to Fisherfolk via ownerFisherfolkId. Unique registrationNumber per tenant. |
+| PermitApplication | PermitApplication | Workflow: draft→submitted→under_review→approved→rejected→printed→cancelled→expired |
+| PermitDocument | PermitDocument | Generated PDF artifact. Links to MediaObject. |
+| CatchReport | CatchReport | Landing/trip report header |
+| CatchReportItem | CatchReportItem | Species + weight per catch report |
+| Program | Program | Fisheries program definition |
+| ProgramEnrollment | ProgramEnrollment | Fisherfolk enrollment in program |
+| Distribution | Distribution | Distribution event |
+| DistributionItem | DistributionItem | Items distributed to beneficiary fisherfolk |
+
+### Prisma Enum Definitions
+
+
+enum TenantStatus        { active, inactive }
+enum UserStatus          { active, disabled }
+enum RoleScope           { global, lgu }
+enum PermissionScope     { global, lgu, both }
+enum OrgScope            { lgu, blue_alliance, both }
+enum ModuleStatus        { planned, active, deprecated }
+enum Sex                 { Male, Female }
+enum FisherfolkStatus    { active, inactive, merged, deceased, moved }
+enum MediaPurpose        { fisherfolk_photo, fisherfolk_signature, idprint_export, vessel_photo, permit_attachment, other }
+enum MediaVariant        { display, thumb }
+enum ProcessingStatus    { pending, processing, ready, failed }
+enum CaptureVia          { upload, camera }
+enum SignatureCaptureVia { upload, draw }
+enum IDPrintOrientation  { portrait }
+enum IDPrintJobStatus    { queued, processing, ready, failed }
+enum VesselStatus        { active, inactive, sold, scrapped }
+enum PermitAppStatus     { draft, submitted, under_review, approved, rejected, printed, cancelled, expired }
+enum ProgramType         { training, cash, equipment, subsidy, inputs, other }
+enum ProgramStatus       { planned, ongoing, closed }
+enum EnrollmentStatus    { enrolled, removed, completed }
+enum AuditAction         { create, update, delete, merge, deactivate, reactivate, export, print, role_change, enable_module, disable_module, login, logout, media_upload, media_delete, permit_approve, permit_reject }
+
+
+---
+
+## 4. Workflows → NestJS Modules
+
+### Module Mapping
+
+| Spec Workflow | NestJS Module | Controller(s) | Service(s) | Key Endpoints |
+|---|---|---|---|---|
+| **Tenant management** | TenantModule | TenantController | TenantService | CRUD tenants, enable/disable modules |
+| **Auth + JWT** | AuthModule | — (strategy only) | AuthService, JwtStrategy | Token validation, user sync from Keycloak |
+| **User management** | UserModule | UserController | UserService | CRUD users, assign roles |
+| **RBAC** | RbacModule | RoleController | RoleService, PermissionService | List roles, list permissions, manage role-permission mappings |
+| **Module registry** | ModuleRegistryModule | ModuleRegistryController, MenuController | ModuleRegistryService, MenuService | List modules, get tenant menus |
+| **Media uploads** | MediaModule | MediaController | MediaService, MinioService | Upload, get presigned URL, delete |
+| **Fisherfolk CRUD** | FmsModule | FisherfolkController | FisherfolkService | List, create, read, update, delete, merge fisherfolk |
+| **ID printing** | FmsModule | IdPrintController | IdPrintService | Create print job, get job status, list templates |
+| **FMS reports** | FmsModule | FmsReportController | FmsReportService | Registration stats, barangay breakdown |
+| **Vessel CRUD** | VmsModule | VesselController | VesselService | List, create, read, update, delete vessels |
+| **Permit workflow** | VmsModule | PermitController | PermitService | Apply, review, approve, reject, print permits |
+| **Catch reporting** | VmsModule | CatchReportController | CatchReportService | Create, list, detail catch reports |
+| **Programs** | VmsModule | ProgramController | ProgramService | CRUD programs, enroll, distribute |
+| **VMS reports** | VmsModule | VmsReportController | VmsReportService | Catch trends, permit stats |
+| **Reference data** | ReferenceDataModule | BarangayController, CategoryController, SpeciesController, LandingSiteController | Matching services | List/manage reference data |
+| **Audit logs** | AuditModule | AuditController | AuditService | Query audit logs (filterable) |
+| **Dashboards** | DashboardModule | LguDashboardController, GlobalDashboardController | LguDashboardService, GlobalDashboardService | KPI endpoints |
+
+### API Route Convention
+
+
+Base:  /api/v1
+
+Platform:
+  POST   /api/v1/tenants
+  GET    /api/v1/tenants
+  GET    /api/v1/tenants/:id
+  PATCH  /api/v1/tenants/:id
+  POST   /api/v1/tenants/:id/modules
+  GET    /api/v1/menus
+  GET    /api/v1/users
+  POST   /api/v1/users
+  PATCH  /api/v1/users/:id
+  GET    /api/v1/roles
+  GET    /api/v1/permissions
+  GET    /api/v1/audit-logs
+
+Media:
+  POST   /api/v1/media/upload
+  GET    /api/v1/media/:id/url
+  DELETE /api/v1/media/:id
+
+FMS:
+  GET    /api/v1/fms/fisherfolk
+  POST   /api/v1/fms/fisherfolk
+  GET    /api/v1/fms/fisherfolk/:id
+  PATCH  /api/v1/fms/fisherfolk/:id
+  DELETE /api/v1/fms/fisherfolk/:id
+  POST   /api/v1/fms/fisherfolk/:id/merge
+  POST   /api/v1/fms/fisherfolk/:id/photo
+  POST   /api/v1/fms/fisherfolk/:id/signature
+  GET    /api/v1/fms/id-print/templates
+  POST   /api/v1/fms/id-print/templates
+  POST   /api/v1/fms/id-print/jobs
+  GET    /api/v1/fms/id-print/jobs/:id
+  GET    /api/v1/fms/reports/registrations
+  GET    /api/v1/fms/reports/barangay-breakdown
+  POST   /api/v1/fms/reports/export
+
+VMS:
+  GET    /api/v1/vms/vessels
+  POST   /api/v1/vms/vessels
+  GET    /api/v1/vms/vessels/:id
+  PATCH  /api/v1/vms/vessels/:id
+  DELETE /api/v1/vms/vessels/:id
+  GET    /api/v1/vms/permits
+  POST   /api/v1/vms/permits
+  GET    /api/v1/vms/permits/:id
+  PATCH  /api/v1/vms/permits/:id/review
+  PATCH  /api/v1/vms/permits/:id/approve
+  PATCH  /api/v1/vms/permits/:id/reject
+  POST   /api/v1/vms/permits/:id/print
+  GET    /api/v1/vms/catch-reports
+  POST   /api/v1/vms/catch-reports
+  GET    /api/v1/vms/catch-reports/:id
+  PATCH  /api/v1/vms/catch-reports/:id
+  DELETE /api/v1/vms/catch-reports/:id
+  GET    /api/v1/vms/programs
+  POST   /api/v1/vms/programs
+  GET    /api/v1/vms/programs/:id
+  POST   /api/v1/vms/programs/:id/enroll
+  POST   /api/v1/vms/programs/:id/distribute
+  GET    /api/v1/vms/reports/catch-trends
+  GET    /api/v1/vms/reports/permit-status
+
+Reference Data:
+  GET    /api/v1/reference/barangays
+  GET    /api/v1/reference/categories
+  GET    /api/v1/reference/species
+  GET    /api/v1/reference/landing-sites
+  GET    /api/v1/reference/permit-types
+
+Dashboard:
+  GET    /api/v1/dashboard/lgu
+  GET    /api/v1/dashboard/global
+  GET    /api/v1/dashboard/global/lgu/:tenantId
+
+
+---
+
+## 5. Screens → Next.js Routes
+
+Source: PRODUCT.md workspace navigation + module PRODUCT.md files
+
+### Workspace Layout (LGU: {lgu}.fish.powerbyte.app)
+
+| Menu Section | Route | Page Component | Required Permission |
+|---|---|---|---|
+| **Dashboard** | /dashboard | DashboardPage | (any authenticated) |
+| **FMS › Fisherfolk List** | /fms/fisherfolk | FisherfolkListPage | fms.fisherfolk.read |
+| **FMS › Register** | /fms/register | FisherfolkRegisterPage | fms.fisherfolk.create |
+| **FMS › Profile** | /fms/fisherfolk/[id] | FisherfolkProfilePage | fms.fisherfolk.read |
+| **FMS › Edit** | /fms/fisherfolk/[id]/edit | FisherfolkEditPage | fms.fisherfolk.update |
+| **FMS › Reports** | /fms/reports | FmsReportsPage | fms.reports.read |
+| **FMS › ID Printing** | /fms/id-printing | IdPrintingPage | fms.idprint.use |
+| **VMS › Vessels** | /vms/vessels | VesselListPage | vms.vessel.read |
+| **VMS › Vessel Detail** | /vms/vessels/[id] | VesselDetailPage | vms.vessel.read |
+| **VMS › Register Vessel** | /vms/vessels/new | VesselRegisterPage | vms.vessel.create |
+| **VMS › Permits** | /vms/permits | PermitListPage | vms.permit.apply |
+| **VMS › Permit Detail** | /vms/permits/[id] | PermitDetailPage | vms.permit.apply |
+| **VMS › Catch Reports** | /vms/catch-reports | CatchReportListPage | vms.catch.read |
+| **VMS › New Catch Report** | /vms/catch-reports/new | CatchReportCreatePage | vms.catch.create |
+| **VMS › Programs** | /vms/programs | ProgramListPage | vms.program.create |
+| **VMS › Program Detail** | /vms/programs/[id] | ProgramDetailPage | vms.program.create |
+| **Analytics** | /analytics | AnalyticsPage | fms.reports.read or vms.reports.read |
+| **Admin › Users** | /admin/users | UserManagementPage | lgu_admin+ |
+| **Admin › Roles** | /admin/roles | RoleManagementPage | lgu_admin+ |
+| **Admin › Reference Data** | /admin/reference-data | ReferenceDataPage | lgu_admin+ |
+| **Admin › Audit Logs** | /admin/audit-logs | AuditLogPage | lgu_admin+ |
+
+### Blue Alliance Layout (bluealliance.fish.powerbyte.app)
+
+| Route | Page Component | Required Role |
+|---|---|---|
+| /dashboard | GlobalDashboardPage | global_admin |
+| /tenants | TenantListPage | global_admin |
+| /tenants/[id] | TenantDetailPage | global_admin |
+| /tenants/new | TenantCreatePage | global_admin |
+| /analytics | GlobalAnalyticsPage | global_admin |
+| /admin/users | GlobalUserManagementPage | global_admin |
+| /admin/audit-logs | GlobalAuditLogPage | global_admin |
+
+### Auth Routes (shared)
+
+| Route | Page Component |
+|---|---|
+| /auth/login | LoginPage (redirect to Keycloak) |
+| /auth/callback | AuthCallbackPage (handle OIDC callback) |
+| /auth/logout | LogoutPage |
+
+---
+
+## 6. Permissions → Guards & Policies
+
+Source: PERMISSION_REGISTRY.md
+
+### Guard Architecture
+
+
+Request
+  → TenantResolverMiddleware     (extract tenantId from subdomain/header)
+  → JwtAuthGuard                 (validate Bearer JWT, extract claims)
+  → TenantGuard                  (verify user belongs to resolved tenant, or is global_admin)
+  → PermissionsGuard             (check @RequirePermissions() decorator against user's role-permissions)
+  → Controller method
+
+
+### Permission Decorator Usage
+
+
+@RequirePermissions('fms.fisherfolk.create')
+@Post('/fms/fisherfolk')
+createFisherfolk() { ... }
+
+
+### Permission Keys → Guard Mapping
+
+| Permission Key | Applied To | Roles Granted |
+|---|---|---|
+| fms.fisherfolk.read | GET /fms/fisherfolk, GET /fms/fisherfolk/:id | global_admin, lgu_admin, user, viewer |
+| fms.fisherfolk.create | POST /fms/fisherfolk | global_admin, lgu_admin, user |
+| fms.fisherfolk.update | PATCH /fms/fisherfolk/:id | global_admin, lgu_admin, user |
+| fms.fisherfolk.delete | DELETE /fms/fisherfolk/:id | global_admin, lgu_admin |
+| fms.fisherfolk.merge | POST /fms/fisherfolk/:id/merge | global_admin, lgu_admin |
+| fms.identity.edit | PATCH identity fields (idNumber, rsbsaNumber, fullName, birthDate) | global_admin, lgu_admin |
+| fms.media.upload | POST photo/signature | global_admin, lgu_admin, user |
+| fms.media.delete | DELETE media | global_admin, lgu_admin |
+| fms.idprint.use | POST /fms/id-print/jobs | global_admin, lgu_admin, user |
+| fms.reports.read | GET /fms/reports/* | global_admin, lgu_admin, user, viewer |
+| fms.reports.export | POST /fms/reports/export | global_admin, lgu_admin |
+| vms.vessel.read | GET /vms/vessels | global_admin, lgu_admin, user, viewer |
+| vms.vessel.create | POST /vms/vessels | global_admin, lgu_admin, user |
+| vms.vessel.update | PATCH /vms/vessels/:id | global_admin, lgu_admin, user |
+| vms.vessel.delete | DELETE /vms/vessels/:id | global_admin, lgu_admin |
+| vms.permit.apply | POST /vms/permits | global_admin, lgu_admin, user |
+| vms.permit.review | PATCH /vms/permits/:id/review | global_admin, lgu_admin |
+| vms.permit.approve | PATCH /vms/permits/:id/approve | global_admin, lgu_admin |
+| vms.permit.print | POST /vms/permits/:id/print | global_admin, lgu_admin |
+| vms.catch.read | GET /vms/catch-reports | global_admin, lgu_admin, user, viewer |
+| vms.catch.create | POST /vms/catch-reports | global_admin, lgu_admin, user |
+| vms.catch.update | PATCH /vms/catch-reports/:id | global_admin, lgu_admin, user |
+| vms.catch.delete | DELETE /vms/catch-reports/:id | global_admin, lgu_admin |
+| vms.program.create | POST /vms/programs | global_admin, lgu_admin |
+| vms.program.enroll | POST /vms/programs/:id/enroll | global_admin, lgu_admin, user |
+| vms.program.distribute | POST /vms/programs/:id/distribute | global_admin, lgu_admin |
+| vms.reports.read | GET /vms/reports/* | global_admin, lgu_admin, user, viewer |
+| vms.reports.export | POST /vms/reports/export | global_admin, lgu_admin |
+
+### Identity Field Protection
+
+The fms.identity.edit permission is checked as an additional guard when PATCH requests modify any of: idNumber, rsbsaNumber, firstName, lastName, middleName, dateOfBirth. This is enforced in FisherfolkService at the business logic layer, not just at the route level.
+
+---
+
+## 7. Tenancy → Subdomain Middleware
+
+### Resolution Flow
+
+**Next.js Middleware** (apps/web/middleware.ts):
+1. Extract hostname from request
+2. Parse subdomain: {subdomain}.fish.powerbyte.app or {subdomain}.localhost
+3. If bluealliance → set workspace context to Blue Alliance
+4. If valid LGU subdomain → set tenant context (via header or cookie)
+5. Local dev fallback: check ?tenant= query param
+6. Pass x-tenant-id header to API calls
+
+**NestJS Middleware** (TenantResolverMiddleware):
+1. Read x-tenant-id header from request
+2. Validate tenant exists and is active (cache in Redis, TTL 5 min)
+3. Attach tenantId to request context
+4. If missing/invalid → 403 Forbidden (except for global routes)
+
+**Tenant Scope Interceptor** (TenantScopeInterceptor):
+1. Automatically inject tenantId into all Prisma queries via WHERE clause
+2. Prevent cross-tenant data access at ORM level
+3. global_admin bypass: allowed to query across tenants when explicitly requested
+
+### Subdomain → Tenant Resolution Cache
+
+
+Redis key: tenant:subdomain:{subdomain}
+Value:     { tenantId, name, status }
+TTL:       300s (5 minutes)
+
+
+---
+
+## 8. Auth → Keycloak Integration
+
+### Configuration
+
+| Setting | Value |
+|---|---|
+| Realm | blue-ocean |
+| Web client ID | blue-ocean-web |
+| API client ID | blue-ocean-api |
+| Issuer (dev) | https://auth.dev.fish.powerbyte.app/realms/blue-ocean |
+| Issuer (stage) | https://auth.stage.fish.powerbyte.app/realms/blue-ocean |
+| Issuer (prod) | https://auth.fish.powerbyte.app/realms/blue-ocean |
+| Local dev issuer | http://localhost:8080/realms/blue-ocean |
+
+### JWT Claims Mapping
+
+| JWT Claim | App Field | Description |
+|---|---|---|
+| sub | userId | Keycloak user ID (UUID) |
+| tenant_id | tenantId | Custom claim — tenant UUID |
+| realm_access.roles | roles | Array of role codes |
+| email | email | User email |
+| preferred_username | displayName | Display name |
+
+### Auth Flow
+
+1. Next.js redirects unauthenticated users to Keycloak login
+2. Keycloak authenticates and returns authorization code
+3. Next.js exchanges code for tokens (PKCE flow)
+4. Access token (JWT) sent as Authorization: Bearer {token} on API calls
+5. NestJS JwtStrategy validates token against Keycloak JWKS endpoint
+6. On first valid login, AuthService upserts local User record from JWT claims
+
+### Role Model
+
+- **Keycloak** stores role codes in realm_access.roles
+- **App-side** UserRole table binds userId + tenantId + roleCode
+- global_admin has no tenantId constraint (nullable)
+- Tenant-scoped roles (lgu_admin, user, viewer) require tenantId match
+- Future module roles: lgu_ranger, lgu_ranger_lead, blue_operator, blue_admin
+
+---
+
+## 9. Uploads → MinIO + MediaObject + BullMQ
+
+### Upload Pipeline
+
+
+Client
+  → POST /api/v1/media/upload  (multipart, max 10MB)
+  → MediaController validates: MIME (jpeg/png/webp), size ≤10MB, dimension ≤8000px
+  → MediaService uploads raw file to MinIO temp bucket
+  → Creates MediaObject record (processingStatus=pending)
+  → Enqueues job to "media-optimization" queue
+  → Returns mediaObjectId to client (status: pending)
+
+Worker (media-optimization):
+  → Downloads raw from MinIO temp bucket
+  → Sharp pipeline:
+      1. Strip EXIF metadata
+      2. Validate dimensions (reject >8000px)
+      3. Generate display variant:
+         - Photo: 512×512 (1:1 crop, JPEG/WebP quality 80)
+         - Signature: max-width 600px, preserve aspect ratio, PNG/WebP lossless
+      4. Generate thumb variant:
+         - Photo: 128×128 (1:1 crop, JPEG/WebP quality 70)
+         - Signature: not generated (display only)
+  → Uploads variants to MinIO permanent bucket
+  → Updates MediaObject records (processingStatus=ready)
+  → Deletes temp file (originals NOT stored by default)
+
+
+### MinIO Buckets
+
+| Bucket | Purpose |
+|---|---|
+| temp-uploads | Raw uploads before processing |
+| media | Optimized display + thumb variants |
+
+### MediaObject Variants
+
+| Purpose | Variant: display | Variant: thumb |
+|---|---|---|
+| fisherfolk_photo | 512×512 JPEG/WebP q80 | 128×128 JPEG/WebP q70 |
+| fisherfolk_signature | max-w 600px PNG/WebP lossless | — (none) |
+| vessel_photo | 512×512 JPEG/WebP q80 | 128×128 JPEG/WebP q70 |
+| idprint_export | Full resolution PDF page | — (none) |
+| permit_attachment | max-w 1200px JPEG/WebP q85 | 128×128 JPEG/WebP q70 |
+
+### Presigned URL Pattern
+
+- UI never accesses MinIO directly
+- GET /api/v1/media/:id/url returns short-lived presigned GET URL (TTL 15 min)
+- API validates tenant ownership before issuing URL
+
+---
+
+## 10. Queues → BullMQ Workers
+
+### Queue Definitions
+
+| Queue Name | Processor File | Purpose |
+|---|---|---|
+| media-optimization | media-optimization.processor.ts | Image EXIF strip, resize, variant generation |
+| export-jobs | export-jobs.processor.ts | CSV/Excel report generation (async) |
+| id-print-jobs | id-print-jobs.processor.ts | ID card PDF rendering |
+
+### Shared Queue Configuration
+
+| Setting | Value |
+|---|---|
+| Redis connection | Shared Redis instance |
+| Max retries | 3 |
+| Backoff strategy | Exponential (1000ms, 2000ms, 4000ms) |
+| DLQ enabled | Yes — failed jobs after max retries → {queue-name}:dlq |
+| DLQ replay | Admin UI endpoint: POST /api/v1/admin/queues/:name/replay/:jobId |
+| Concurrency | media-optimization: 3, export-jobs: 2, id-print-jobs: 1 |
+| Job TTL | 24 hours (completed jobs cleaned after) |
+
+### Job Payload Schemas
+
+**media-optimization:**
+
+{
+  mediaObjectId: UUID,
+  tenantId: UUID,
+  purpose: MediaPurpose,
+  tempObjectKey: string
+}
+
+
+**export-jobs:**
+
+{
+  tenantId: UUID,
+  reportType: string,
+  filters: object,
+  requestedByUserId: UUID,
+  format: "csv" | "xlsx"
+}
+
+
+**id-print-jobs:**
+
+{
+  printJobId: UUID,
+  tenantId: UUID,
+  templateId: UUID,
+  fisherfolkIds: UUID[] (max 4)
+}
+
+
+---
+
+## 11. ID Printing → Template + Job + PDF
+
+### Architecture
+
+
+UI (IdPrintingPage)
+  → User searches/selects up to 4 fisherfolk
+  → User selects template (or default)
+  → POST /api/v1/fms/id-print/jobs { templateId, fisherfolkIds[] }
+  → IdPrintService creates IDPrintJob + IDPrintJobItems
+  → Enqueues to "id-print-jobs" queue
+  → Returns jobId (status: queued)
+
+Worker (id-print-jobs):
+  → Loads IDPrintTemplate.templateJson
+  → Loads fisherfolk data + photo + signature media URLs
+  → Renders PDF (200mm × 300mm portrait):
+      - Front: photo, name, ID number, barangay, categories, QR code
+      - Back: signature, RSBSA number, validity, LGU info
+  → Layout places up to 4 fisherfolk per page
+  → Uploads rendered PDF to MinIO (purpose: idprint_export)
+  → Updates IDPrintJob: status=ready, resultFrontMediaId, resultBackMediaId
+
+UI Polling:
+  → GET /api/v1/fms/id-print/jobs/:id (poll every 2s)
+  → When status=ready → show download/print button
+  → Download via presigned URL
+
+
+### Template Schema (IDPrintTemplate.templateJson)
+
+
+{
+  front: {
+    background: { mediaObjectId?, color? },
+    elements: [
+      { type: "photo", x, y, width, height },
+      { type: "text", field: "fullNameDisplay", x, y, fontSize, fontWeight },
+      { type: "text", field: "idNumber", ... },
+      { type: "text", field: "barangayDisplay", ... },
+      { type: "text", field: "categories", ... },
+      { type: "qrcode", field: "idNumber", x, y, size },
+      { type: "image", mediaObjectId: "lgu-logo-id", x, y, width, height }
+    ]
+  },
+  back: {
+    elements: [
+      { type: "signature", x, y, width, height },
+      { type: "text", field: "rsbsaNumber", ... },
+      { type: "text", field: "validity", ... },
+      { type: "text", value: "City of Calapan", ... }
+    ]
+  },
+  grid: {
+    columns: 2,
+    rows: 2,
+    cardWidthMm: 85.6,
+    cardHeightMm: 54
+  }
+}
+
+
+---
+
+## 12. Seed Data
+
+### Seed Execution Order
+
+1. **Roles** → global_admin, lgu_admin, user, viewer
+2. **Permissions** → all keys from PERMISSION_REGISTRY.md
+3. **RolePermissions** → map permissions to roles per PERMISSION_REGISTRY.md
+4. **Modules** → fms (active), vms (active), bluesentinel (planned)
+5. **ModuleMenus** → navigation items from PRODUCT.md workspace nav spec
+6. **Categories** → 6 fisherfolk category types (global, no tenantId)
+7. **Barangays** → 62 Calapan City barangays (global, tenantId = null)
+8. **Species** → initial species list (global, tenantId = null)
+9. **Dev-only: Tenant** → Calapan City (subdomain: calapan) + Blue Alliance
+10. **Dev-only: Users** → test users per role
+
+### Seed File
+
+Location: packages/database/prisma/seed.ts
+
+Seed data constants: packages/shared/src/constants/seed/
+
+---
+
+## 13. Dashboard & Reporting
+
+### LGU Dashboard KPIs (Priority Order)
+
+| # | KPI | Chart Type | Data Source |
+|---|---|---|---|
+| 1 | Total registered fisherfolk by status | Stat cards + breakdown | Fisherfolk |
+| 2 | Registration trend (12 months) | Line chart | Fisherfolk.createdAt |
+| 3 | Fisherfolk by barangay | Horizontal bar | Fisherfolk + Barangay |
+| 4 | Fisherfolk by age group (<18, 18–30, 31–45, 46–60, 60+) | Bar chart | Fisherfolk.dateOfBirth |
+| 5 | Fisherfolk by category | Donut chart | FisherfolkCategory + Category |
+| 6 | Total vessels by status | Stat cards | Vessel |
+| 7 | Permits: active vs expiring (30/60/90 days) + overdue | Stacked bar | PermitApplication |
+| 8 | Catch volume trend (monthly, filterable by landing site) | Line chart | CatchReport + CatchReportItem |
+| 9 | Top 10 species by catch volume | Horizontal bar | CatchReportItem + Species |
+| 10 | Landing site activity (report count + volume) | Bar chart | CatchReport + LandingSite |
+
+Secondary: Program participation summary (widget, not top-10 for v1)
+
+### Blue Alliance Global Dashboard
+
+| KPI | Type | Notes |
+|---|---|---|
+| Aggregate totals (fisherfolk, vessels, permits, catch volume) | Stat cards | Sum across all LGUs |
+| LGU comparison | Ranked table + bar | Fisherfolk count, vessels, catch, permits |
+| Drill-down to LGU | Link | Read-only LGU dashboard view |
+| Global catch trends | Time series | Filterable by LGU |
+| Module adoption heatmap | Grid/heatmap | Which LGUs have which modules |
+| Data freshness / compliance | Indicators per LGU | Last catch report date, missing reports, permit backlog |
+
+---
+
+## 14. Security & Governance
+
+### Audit Events
+
+All audit events write to AuditLog table with: actorUserId, tenantId, entityType, entityId, beforeJson, afterJson, ipAddress, userAgent, createdAt.
+
+| Event | Trigger |
+|---|---|
+| create | Any entity creation |
+| update | Any entity update |
+| delete | Any entity soft-delete |
+| merge | Fisherfolk merge operation |
+| deactivate | Fisherfolk status → inactive |
+| reactivate | Fisherfolk status → active (from inactive) |
+| export | Report export (CSV/XLSX) |
+| print | ID print job or permit print |
+| role_change | User role assignment/removal |
+| enable_module | Module enabled for tenant |
+| disable_module | Module disabled for tenant |
+| login | User login (from Keycloak event) |
+| logout | User logout |
+| media_upload | Media file uploaded |
+| media_delete | Media file deleted |
+| permit_approve | Permit approved |
+| permit_reject | Permit rejected |
+
+### Data Retention Policy
+
+| Data Type | Retention | Action After |
+|---|---|---|
+| Audit logs | 3 years minimum | Archive to cold storage |
+| Soft-deleted records | 1 year | Hard purge (scheduled job) |
+| Right-to-delete requests | Immediate | Anonymize PII fields, retain statistical record |
+| Completed queue jobs | 24 hours | Auto-cleaned by BullMQ |
+| Temp upload files | 1 hour | Deleted after processing |
+
+### CORS
+
+| Environment | Allowed Origins |
+|---|---|
+| Development | https://dev.fish.powerbyte.app, https://*.dev.fish.powerbyte.app, http://localhost:3000 |
+| Staging | https://stage.fish.powerbyte.app, https://*.stage.fish.powerbyte.app |
+| Production | https://fish.powerbyte.app, https://*.fish.powerbyte.app |
+
+### Rate Limiting
+
+| Endpoint Type | Limit | Key |
+|---|---|---|
+| Public | 30 req/min | IP address |
+| Authenticated | 120 req/min | userId |
+| Upload | 10 req/min | userId |
+
+### CSRF
+
+Not required. API uses Bearer-token-only authentication (JWT). No cookie-based sessions.
+
+---
+
+## 15. Infrastructure
+
+### Docker Compose Services (Development)
+
+| Service | Image | Port | Purpose |
+|---|---|---|---|
+| postgres | postgres:15 | 5432 | Primary database |
+| redis | redis:7 | 6379 | Cache + BullMQ broker |
+| keycloak | quay.io/keycloak/keycloak:latest | 8080 | Auth provider |
+| minio | minio/minio:latest | 9000 (API), 9001 (console) | Object storage |
+| app | node:20 (dev mount) | 3000 | Next.js + NestJS |
+| worker | node:20 (dev mount) | — | BullMQ processor |
+
+### Environment Variables
+
+
+# Database
+DATABASE_URL=postgresql://user:pass@postgres:5432/blueocean
+
+# Redis
+REDIS_URL=redis://redis:6379
+
+# Keycloak
+KEYCLOAK_ISSUER=http://keycloak:8080/realms/blue-ocean
+KEYCLOAK_CLIENT_ID_WEB=blue-ocean-web
+KEYCLOAK_CLIENT_ID_API=blue-ocean-api
+KEYCLOAK_CLIENT_SECRET_API=...
+
+# MinIO
+MINIO_ENDPOINT=minio
+MINIO_PORT=9000
+MINIO_ACCESS_KEY=...
+MINIO_SECRET_KEY=...
+MINIO_BUCKET_TEMP=temp-uploads
+MINIO_BUCKET_MEDIA=media
+
+# App
+APP_BASE_DOMAIN=fish.powerbyte.app
+APP_ENV=development
+CORS_ORIGINS=http://localhost:3000
+
+# Rate Limiting
+RATE_LIMIT_PUBLIC=30
+RATE_LIMIT_AUTH=120
+RATE_LIMIT_UPLOAD=10
+
+
+### Kubernetes
+
+Disabled by default. K8s manifests/Helm chart to be scaffolded later for staging/production.
+
+---
+
+## 16. Implementation Phases
+
+### Phase 4A — Foundation (no module features)
+
+1. Monorepo scaffold (pnpm workspaces + Turbo)
+2. Docker Compose configuration
+3. Prisma schema: Tenant, User, Role, Permission, RolePermission, UserRole, AuditLog, Module, TenantModule, ModuleMenu
+4. Keycloak realm + client setup (dev)
+5. NestJS bootstrap: AuthModule, TenantModule, UserModule, RbacModule
+6. Tenant resolver middleware + guard chain
+7. Audit log interceptor
+8. Seed: roles, permissions, role-permissions, modules, menus
+9. Next.js bootstrap: auth flow, workspace layout, tenant context, sidebar navigation
+10. Dev-only seed: Calapan tenant, Blue Alliance tenant, test users
+
+### Phase 4B — Media & Reference Data
+
+1. MinIO bucket initialization
+2. Prisma schema: MediaObject, Barangay, Category
+3. MediaModule: upload endpoint, MinIO service, presigned URLs
+4. BullMQ setup: media-optimization queue + processor (Sharp pipeline)
+5. Seed: barangays (Calapan City), categories (6 types)
+6. ReferenceDataModule: barangay, category controllers/services
+
+### Phase 4C — FMS Module
+
+1. Prisma schema: Fisherfolk, FisherfolkCategory, FisherfolkPhoto, FisherfolkSignature
+2. FMS NestJS: FisherfolkController, FisherfolkService
+3. Fisherfolk CRUD endpoints (list, create, read, update, delete)
+4. Identity field protection (fms.identity.edit guard)
+5. Photo + signature upload integration (→ MediaObject)
+6. Merge fisherfolk workflow
+7. Next.js: FisherfolkListPage, RegisterPage, ProfilePage, EditPage
+8. FMS reports endpoints + UI
+
+### Phase 4D — FMS ID Printing
+
+1. Prisma schema: IDPrintTemplate, IDPrintJob, IDPrintJobItem
+2. IdPrintController, IdPrintService
+3. BullMQ: id-print-jobs queue + processor (PDF rendering)
+4. Next.js: IdPrintingPage (search, multi-select, template select, job status polling)
+
+### Phase 4E — VMS Module
+
+1. Prisma schema: Vessel, PermitType, PermitApplication, PermitDocument, Species, LandingSite, CatchReport, CatchReportItem, Program, ProgramEnrollment, Distribution, DistributionItem
+2. VMS NestJS: all controllers + services
+3. Permit workflow (apply → review → approve → reject → print)
+4. Catch reporting endpoints
+5. Program management endpoints
+6. Seed: species (global), permit types (dev tenant)
+7. Next.js: all VMS pages
+8. BullMQ: export-jobs queue + processor
+
+### Phase 4F — Dashboards & Analytics
+
+1. LGU dashboard KPI endpoints (top 10)
+2. Global dashboard KPI endpoints
+3. Next.js: LGU DashboardPage, Global DashboardPage
+4. Chart components (using charting library TBD — Recharts or Chart.js)
+
+### Phase 4G — Administration & Polish
+
+1. User management UI
+2. Role management UI
+3. Reference data admin UI
+4. Audit log viewer UI (filterable, paginated)
+5. DLQ admin replay UI
+6. Rate limiting middleware
+7. CORS configuration per environment
+8. Error handling polish
+9. E2E test foundation
 
