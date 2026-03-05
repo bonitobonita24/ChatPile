@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T06:13:39.883Z
+- Captured: 2026-03-05T06:16:43.117Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -4540,4 +4540,565 @@ ID printing menu
 image optimization policy
 
 If you want next, the best architectural move is for me to generate a matching docs/modules/vms/PRODUCT.md that plugs perfectly into this enterprise spec and your FMS module.
+
+## User
+
+- ok this sounds good but the App name for the Enterprise system should not be under the name of single app named fisheries.
+- the name should be in general and can be far from the specific app but of course should be aligned to ocean and fishing activities.
+- also please add to the per LGU boundaries that for every LGU there should be a subdomain that they can access like for instance, if the Top level domain is fish.powerbyte.app, for every LGU set of app or module access, their domain access would be (for example is for Calapan City LGU) calapan.fish.powerbyte.app
+- each LGU should have their own set of usable apps or modules but should never be seen by other LGU
+- but the top most management which is the Blue Alliance who really holds the system should see every LGU's data
+- the top most management access should be accessed via subdomain name like bluealliance.fish.powerbyte.app
+
+## Assistant
+
+Excellent clarifications — these are enterprise-level architecture decisions, so it’s good we lock them early.
+
+I will adjust the Enterprise PRODUCT.md so it now includes:
+
+A neutral platform name aligned with ocean/fisheries but not a single-app name
+
+Subdomain-based tenancy routing
+
+LGU data isolation
+
+Blue Alliance global authority access
+
+Alignment with your SPEC-DRIVEN V6 PRODUCT.md template
+
+Below is the updated Enterprise PRODUCT.md you should place in:
+
+docs/PRODUCT.md
+Product Definition
+App Name
+
+Blue Ocean Governance Platform
+
+(working name — can be changed later without affecting architecture)
+
+The platform name is intentionally broad and ecosystem-oriented, allowing multiple operational systems such as fisherfolk registries, vessel management, fisheries monitoring, and marine governance tools to operate within the same environment.
+
+Purpose
+
+The Blue Ocean Governance Platform is a multi-tenant enterprise system designed to support fisheries and marine governance operations across multiple Local Government Units (LGUs).
+
+The platform provides a unified digital workspace where operational modules such as fisherfolk registries, vessel management systems, permit workflows, fisheries monitoring, and program interventions can operate within a shared environment.
+
+Each LGU operates its own isolated workspace containing its authorized modules and datasets, while the top-level governing organization, Blue Alliance, maintains full administrative oversight across all LGUs.
+
+The system ensures data integrity, operational efficiency, and governance visibility for sustainable fisheries management.
+
+Target Users
+1. Blue Alliance Global Administrators
+
+The highest-level authority managing the entire platform ecosystem.
+
+Responsibilities:
+
+manage all LGU tenants
+
+enable or disable modules per LGU
+
+view all operational data across LGUs
+
+manage global users and governance policies
+
+oversee system analytics and reporting
+
+Access Domain:
+
+bluealliance.fish.powerbyte.app
+2. LGU Administrators
+
+Administrators responsible for a specific municipality or LGU.
+
+Responsibilities:
+
+manage local system users
+
+oversee fisheries operations
+
+monitor reports and analytics
+
+coordinate permit and registration workflows
+
+Access Domain Example:
+
+calapan.fish.powerbyte.app
+3. LGU Operational Staff
+
+Users performing day-to-day fisheries operations such as:
+
+fisherfolk registration
+
+vessel management
+
+permit processing
+
+catch monitoring
+
+program distribution tracking
+
+4. Data Analysts / Supervisors
+
+Users responsible for reviewing system analytics and operational statistics.
+
+Core Entities
+Tenant (LGU)
+
+Represents a municipality or local government unit.
+
+Fields:
+
+id
+
+name
+
+province
+
+region
+
+country
+
+subdomain
+
+status
+
+createdAt
+
+Example:
+
+name: Calapan City
+subdomain: calapan
+
+Relationships:
+
+hasMany Users
+
+hasMany Fisherfolk
+
+hasMany Vessels
+
+hasMany Permits
+
+hasMany CatchRecords
+
+hasMany Programs
+
+All operational records must include:
+
+tenantId
+
+This ensures strict data isolation between LGUs.
+
+User
+
+Fields:
+
+id
+
+tenantId
+
+name
+
+email
+
+role
+
+status
+
+createdAt
+
+Roles:
+
+global_admin
+lgu_admin
+user
+viewer
+Module
+
+Represents a system application available inside the platform workspace.
+
+Examples:
+
+FMS (Fisherfolk Management System)
+
+VMS (Vessel Management System)
+
+Fields:
+
+id
+
+name
+
+code
+
+description
+
+isActive
+
+LGUModule
+
+Defines which modules are enabled for each LGU.
+
+Fields:
+
+id
+
+tenantId
+
+moduleCode
+
+isEnabled
+
+createdAt
+
+Example:
+
+tenantId: Calapan City
+moduleCode: FMS
+isEnabled: true
+Shared Reference Data
+
+Certain reference entities are shared across modules.
+
+Examples:
+
+Barangay
+
+Species
+
+Landing Sites
+
+Permit Types
+
+Fishing Gear Types
+
+Barangay Reference Data
+
+Barangay selections must follow the official list for Calapan City.
+
+Allowed values:
+
+Balingayan
+Balite
+Baruyan
+Batino
+Bayanan I
+Bayanan II
+Biga
+Bondoc
+Bucayao
+Buhuan
+Bulusan
+Sta. Rita
+Calero
+Camansihan
+Camilmil
+Canubing I
+Canubing II
+Comunal
+Guinobatan
+Gulod
+Gutad
+Ibaba East
+Ibaba West
+Ilaya
+Lalud
+Lazareto
+Libis
+Lumangbayan
+Mahal Na Pangalan
+Maidlang
+Malad
+Malamig
+Managpi
+Masipit
+Nag-Iba I
+Navotas
+Pachoca
+Palhi
+Panggalaan
+Parang
+Patas
+Personas
+Puting Tubig
+Salong
+San Antonio
+San Vicente Central
+San Vicente East
+San Vicente North
+San Vicente South
+San Vicente West
+Sta. Cruz
+Sta. Isabel
+Sto. Niño
+Sapul
+Silonay
+Sta. Maria Village
+Suqui
+Tawagan
+Tawiran
+Tibag
+Wawa
+Nag-Iba II
+
+Barangay Display Format
+
+All modules must display barangays using the format:
+
+Brgy. {BarangayName}, City of Calapan
+
+Example:
+
+Brgy. Camilmil, City of Calapan
+User Roles
+global_admin
+
+access all tenants
+
+manage LGUs
+
+manage modules
+
+view all system data
+
+lgu_admin
+
+manage users inside LGU
+
+oversee module operations
+
+user
+
+operational access depending on module permissions
+
+viewer
+
+read-only access
+
+Main Workflows (step-by-step)
+LGU Creation
+
+Blue Alliance global admin creates a new LGU tenant.
+
+System assigns a unique subdomain.
+
+Modules are enabled for that LGU.
+
+LGU administrators are created.
+
+LGU Workspace Access
+
+User navigates to LGU subdomain.
+
+Example:
+
+calapan.fish.powerbyte.app
+
+User authenticates.
+
+System identifies tenant from subdomain.
+
+Workspace loads modules enabled for that LGU.
+
+Workspace Navigation
+
+Modules appear as menus within the unified workspace.
+
+Example:
+
+Dashboard
+
+Fisherfolk Management System
+   Fisherfolk List
+   Register Fisherfolk
+   Reports
+   ID Printing
+
+Vessel Management System
+   Vessels
+   Permit Applications
+   Permit Renewals
+   Catch Reports
+   Programs
+
+Analytics
+   Catch Analytics
+   Registration Reports
+
+Administration
+   Users
+   Roles
+   Reference Data
+   Audit Logs
+
+Menus appear only if the user has permission.
+
+Realtime Features (if any)
+
+Not required in the initial version.
+
+Possible future features:
+
+dashboard live updates
+
+permit approval notifications
+
+program distribution alerts
+
+Background Jobs (if any)
+Image Optimization Job
+
+Triggered whenever an image is uploaded.
+
+Steps:
+
+Retrieve uploaded image.
+
+Remove EXIF metadata.
+
+Validate size and format.
+
+Resize image to predefined display sizes.
+
+Generate optimized variants:
+
+thumbnail
+
+display version
+
+Store optimized files.
+
+Update media metadata records.
+
+Storage Requirements (types, size limits)
+
+Supported uploads:
+
+images
+
+documents (future)
+
+Image limits:
+
+max file size: 10MB
+max resolution: 8000px
+
+Optimization rules:
+
+strip EXIF metadata
+
+resize for display variants
+
+compress to JPEG or WebP
+
+Modules using uploads:
+
+FMS (photo, signature)
+
+VMS (vessel images)
+
+permits (document scans)
+
+program distributions (proof images)
+
+Data Sensitivity (PII? retention? export/delete?)
+
+The system contains PII including:
+
+names
+
+birthdates
+
+addresses
+
+contact numbers
+
+identification numbers
+
+photos
+
+signatures
+
+Governance requirements:
+
+audit logging of critical actions
+
+restricted editing of identity fields
+
+export permissions control
+
+soft deletion policies
+
+Tenancy Model (single / multi / undecided)
+
+Tenancy Mode: Multi
+
+Each LGU operates as a separate tenant with its own:
+
+database records
+
+users
+
+modules
+
+operational data
+
+All operational entities must contain:
+
+tenantId
+
+Isolation rule:
+
+LGU users cannot access data from other LGUs.
+
+Exception:
+
+Blue Alliance global administrators can access all LGU tenants.
+
+Environments Needed (dev / stage / prod)
+
+Required environments:
+
+development
+staging
+production
+Domain / Base URL Expectations (optional)
+
+Primary system domain:
+
+fish.powerbyte.app
+
+Tenant routing model:
+
+{lgu}.fish.powerbyte.app
+
+Example:
+
+calapan.fish.powerbyte.app
+
+Global authority domain:
+
+bluealliance.fish.powerbyte.app
+
+✅ This version now fully integrates:
+
+multi-LGU architecture
+
+subdomain tenancy routing
+
+Blue Alliance global governance
+
+module ecosystem (FMS/VMS)
+
+barangay constraint
+
+ID printing submenu
+
+image optimization policy
+
+SPEC-DRIVEN V6 PRODUCT.md format
+
+If you want, the next powerful step would be building a Module Registry design so your platform can later support dozens of apps (Aquaculture, Coastal Patrol, Marine Protected Areas, etc.) without changing architecture.
 
