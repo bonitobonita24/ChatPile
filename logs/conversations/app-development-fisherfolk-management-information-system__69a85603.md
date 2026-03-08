@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Fisherfolk Management Information System
-- Captured: 2026-03-08T06:42:52.333Z
+- Captured: 2026-03-08T06:45:56.873Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -18338,4 +18338,31 @@ If you'd like, I can also show you something very useful next:
 How to turn your PRODUCT.md into an AI-driven system spec that automatically generates Prisma schemas, APIs, and UI modules.
 
 It will make your spec-driven workflow much more powerful.
+
+## User
+
+can you make this not a prompt like but just explaining the whole purpose of the app? i already have a prompt.md createdby claude.ai and it will ask "What this app for and whose gonna use it?" so i need is a full detailed explanation of the this app that answers the question of what this app is, what it does and whose gonna use it
+
+## Assistant
+
+Below is a clear explanation of the platform you can paste into Claude when it asks “What is this app for and who will use it?”.
+This is not written as a prompt, but as a direct product explanation describing the system purpose, users, and capabilities.
+
+Blue Ocean Governance Platform — Purpose and Users
+
+The Blue Ocean Governance Platform is a multi-tenant digital management system designed to help local governments manage fisheries resources, fisherfolk registrations, vessels, fishing permits, catch monitoring, and fisheries programs in a structured and data-driven way.
+
+The platform was designed primarily for Local Government Units (LGUs) such as municipalities and cities that oversee coastal communities and fisheries operations. Many coastal governments still rely on manual records, spreadsheets, and fragmented systems to track fisherfolk identities, vessels, permits, and fish landing data. This platform centralizes all of that information into a unified digital workspace that improves governance, transparency, and planning.
+
+The system also supports a higher-level organization called Blue Alliance, which acts as a regional or national oversight body responsible for marine protection and fisheries monitoring. Blue Alliance can view aggregated data across all participating LGUs, allowing them to analyze trends, monitor compliance, and coordinate enforcement or conservation programs.
+
+The platform is designed to operate as a multi-tenant system, meaning each LGU has its own isolated workspace where it manages its own data independently. Each LGU accesses the system through its own subdomain (for example, calapan.fish.powerbyte.app). Within that workspace, LGU staff can register fisherfolk, manage vessel records, process permits, monitor catch reports, and track fisheries programs. At the same time, Blue Alliance administrators can access a global workspace (bluealliance.fish.powerbyte.app) where they can view cross-LGU analytics and perform governance functions.
+
+The system is modular and designed to grow over time. Each major functional area of the platform is implemented as a module that appears as a menu in the main workspace. The first two foundational modules are the Fisherfolk Management System (FMS) and the Vessel Management System (VMS).
+
+The Fisherfolk Management System (FMS) is the foundation of the entire platform. It serves as the official registry of fisherfolk within an LGU. In many coastal communities, fisherfolk identity records are scattered across different offices or maintained manually. The FMS creates a single authoritative database where LGU staff can register fisherfolk and maintain their identity profiles. Each fisherfolk record includes a unique ID number, full name, birth date, barangay location, sex, contact information, and an RSBSA number if available. The system also records the fisherfolk’s category of activity, such as boat owner/operator, capture fishing, gleaning, vendor, fish processing, or aquaculture.
+
+The FMS also supports media capture, allowing LGU staff to upload or capture a fisherfolk’s photograph and signature. These records can then be used to generate printable fisherfolk identification cards directly from the system. Each fisherfolk record has a detailed profile view where all personal information, categories, and media are displayed in a structured format. Because the fisherfolk registry is the core dataset of the platform, other modules reference these records when linking vessels, permits, or programs.
+
+The Vessel Management System (VMS) builds on top of the fisherfolk registry by managing fishing vessels and operational fisheries data. In this module, LGU staff can register vessels and link them to their owners, who must be registered fisherfolk in the system. The VMS tracks vessel details such as registration numbers, vessel types, and ownership relationships. It also
 
