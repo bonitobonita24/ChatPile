@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Fisherfolk Management Information System
-- Captured: 2026-03-08T06:45:56.873Z
+- Captured: 2026-03-08T06:49:01.306Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -18364,5 +18364,21 @@ The Fisherfolk Management System (FMS) is the foundation of the entire platform.
 
 The FMS also supports media capture, allowing LGU staff to upload or capture a fisherfolk’s photograph and signature. These records can then be used to generate printable fisherfolk identification cards directly from the system. Each fisherfolk record has a detailed profile view where all personal information, categories, and media are displayed in a structured format. Because the fisherfolk registry is the core dataset of the platform, other modules reference these records when linking vessels, permits, or programs.
 
-The Vessel Management System (VMS) builds on top of the fisherfolk registry by managing fishing vessels and operational fisheries data. In this module, LGU staff can register vessels and link them to their owners, who must be registered fisherfolk in the system. The VMS tracks vessel details such as registration numbers, vessel types, and ownership relationships. It also
+The Vessel Management System (VMS) builds on top of the fisherfolk registry by managing fishing vessels and operational fisheries data. In this module, LGU staff can register vessels and link them to their owners, who must be registered fisherfolk in the system. The VMS tracks vessel details such as registration numbers, vessel types, and ownership relationships. It also supports the management of fishing permits and licensing workflows. Staff can process permit applications, review submissions, approve or reject requests, and generate printable permit documents.
+
+Another key capability of the VMS is catch and landing monitoring. The system allows fisheries staff to log catch reports from fishing trips or landing sites. These records include species caught, catch volume, dates, and landing locations. Over time, these records build a dataset that allows the LGU to analyze fisheries productivity, seasonal patterns, and species distribution.
+
+The VMS also includes functionality for managing government fisheries programs and interventions. These programs may include equipment distribution, subsidies, training programs, or other support initiatives for fisherfolk communities. LGU administrators can create programs, enroll beneficiaries, and record distribution events. This allows the government to track which fisherfolk received assistance and ensure transparency in program implementation.
+
+Both the FMS and VMS feed into a dashboard and analytics system that provides real-time insights into fisheries activity. Each LGU has its own operational dashboard that displays key metrics such as the number of registered fisherfolk, fisherfolk distribution by barangay, fisherfolk categories, vessel registrations, permit statuses, and catch volume trends. These analytics help local officials monitor the health of the fisheries sector and make informed policy decisions.
+
+At the global level, Blue Alliance can view aggregated analytics across all LGUs using the platform. Their dashboard provides a broader “command center” perspective, showing total fisherfolk registrations, regional catch trends, vessel statistics, and comparative data across municipalities. This enables Blue Alliance to identify patterns, detect anomalies, and coordinate responses to issues such as illegal fishing or environmental risks.
+
+In the future, the platform will include an additional module called BlueSentinel, which will focus on marine enforcement and coastal protection. BlueSentinel will allow enforcement teams and marine rangers to document incidents such as illegal fishing activities, suspicious vessels, or violations of fisheries regulations. Rangers will be able to record violator information, vessel details, gear used, incident locations, and supporting evidence. This module will help Blue Alliance and LGUs work together to protect marine ecosystems and enforce fisheries laws.
+
+The platform is designed to be used by several types of users. At the LGU level, the primary users are fisheries officers, municipal agriculture staff, data encoders, and local administrators responsible for fisheries management. These users register fisherfolk, manage vessels, process permits, and maintain operational data. Supervisors and LGU administrators can access reports and dashboards to monitor activities and approve workflows.
+
+At the Blue Alliance level, the users are regional administrators, analysts, and enforcement coordinators who oversee fisheries governance across multiple municipalities. They primarily use the platform for analytics, oversight, and cross-LGU coordination rather than day-to-day data entry.
+
+Overall, the purpose of the Blue Ocean Governance Platform is to provide a modern digital infrastructure for fisheries governance. By centralizing fisherfolk data, vessel registrations, permits, catch monitoring, and program management into a single platform, it enables governments to manage marine resources more effectively, support fisherfolk communities, and ensure sustainable fisheries practices.
 
