@@ -2,7 +2,7 @@
 
 - Conversation ID: 69b1617b-bf58-8321-a2c6-3d08132c3c74
 - Title: Smoke Detector Installation High Ceilings
-- Captured: 2026-03-11T12:38:54.774Z
+- Captured: 2026-03-11T12:41:56.213Z
 - URL: https://chatgpt.com/c/69b1617b-bf58-8321-a2c6-3d08132c3c74
 
 ---
@@ -244,5 +244,149 @@ Advantages
 
 2. Wall Mounted Detector for Vaulted Ceilings
 
-(Architectural workaround for steep or inaccessible c
+(Architectural workaround for steep or inaccessible ceilings)
+
+Detail Drawing
+SECTION DETAIL
+
+      Cathedral / Sloped Ceiling
+            /\
+           /  \
+          /    \
+         /      \
+        /        \
+       /          \
+      │            │
+      │            │
+      │  Smoke     │
+      │  Detector  │
+      │  Mounted   │
+      │  On Wall   │
+      │            │
+      │ Junction   │
+      │   Box      │
+      │            │
+      │            │
+      │   Wall     │
+Placement Rule
+
+Detector should be:
+
+100–300 mm (4–12 in) below ceiling
+
+At least 1 m from corners
+
+Advantages
+
+✔ Easier maintenance
+✔ No hanging components
+✔ Minimal visual impact
+
+3. Beam Smoke Detector System
+
+(Used for very large or tall spaces)
+
+Used in:
+
+warehouses
+
+aircraft hangars
+
+church halls
+
+atriums
+
+Detail Drawing
+PLAN VIEW
+
+Wall A                          Wall B
+│                                │
+│  Beam Transmitter              │
+│      ┌───────┐                 │
+│      │       │─────────────────│────── Reflector
+│      │       │   Infrared Beam │
+│      └───────┘                 │
+│                                │
+Typical Specifications
+
+Coverage: up to 100 m
+
+Height: 8 m – 25 m ceilings
+
+Mounted 300–600 mm below ceiling
+
+Advantages
+
+✔ Covers huge areas
+✔ Fewer detectors needed
+✔ Maintenance done from wall level
+
+Cheap DIY Version (Still Safe)
+
+This method is commonly used in high-ceiling houses when professional installations are too expensive.
+
+Materials
+
+PVC electrical conduit (20–25 mm)
+
+PVC junction box
+
+2 stainless screws
+
+Electrical wire
+
+Smoke detector
+
+Cost: $10–$20
+
+DIY Detail
+SIDE VIEW
+
+        Ceiling
+    ───────────────
+        Screw Anchor
+             │
+             │
+       PVC Conduit
+        (1–1.2 m)
+             │
+      PVC Junction Box
+        ┌─────────┐
+        │         │
+        └─────────┘
+             │
+        Smoke Detector
+Installation Steps
+
+Install ceiling anchor screw.
+
+Attach PVC conduit drop (1–1.2 m).
+
+Fix junction box at bottom.
+
+Install detector base.
+
+Connect power or battery detector.
+
+DIY Safety Tips
+
+✔ Keep detector at least 4 in from ceiling peak
+✔ Avoid placing near AC vents or fans
+✔ Ensure solid anchoring
+
+Architect's Pro Tip
+
+For houses with 7–10 m ceilings, the best balance of cost and performance is:
+
+Rigid pendant mount using EMT conduit with junction box.
+
+It looks professional and costs very little more than DIY.
+
+If you want, I can also show you:
+
+A professional ceiling detail sheet like in real construction plans
+
+A telescopic maintenance mount (so you never need a tall ladder)
+
+The exact NFPA smoke detector spacing for high ceilings (most people install them incorrectly).
 
