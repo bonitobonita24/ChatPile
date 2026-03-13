@@ -2,7 +2,7 @@
 
 - Conversation ID: 69b34a1b-7930-839c-b641-859ca23ac2c7
 - Title: AWS Budget for 400k Users
-- Captured: 2026-03-13T13:16:23.272Z
+- Captured: 2026-03-13T13:19:25.489Z
 - URL: https://chatgpt.com/c/69b34a1b-7930-839c-b641-859ca23ac2c7
 
 ---
@@ -1430,4 +1430,34 @@ Subtotal
 6️⃣ Grand Total (Full Infrastructure)
 Scenario	Estimated Monthly Cost
 Low traffic	~ $214 / month
+Average usage	~ $300 / month
+Busy month	~ $492 / month
+7️⃣ Simple Client Explanation
+
+When someone says:
+
+“We only need a server.”
+
+They are referring to this row only:
+
+EC2 Servers
+
+But a real production platform requires:
+
+Servers
++ Database
++ Storage
++ CDN
++ Load Balancer
++ Cache
++ Security
++ Monitoring
+
+That full stack is what allows the platform to handle hundreds of thousands of users safely.
+
+✅ If you'd like, I can also generate one extremely clean architecture image (Netflix-style diagram) that visually shows:
+
+Monolithic vs Full Cloud Stack
+
+This will make the difference immediately obvious to non-technical clients.
 
