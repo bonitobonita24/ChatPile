@@ -3,7 +3,7 @@
 - Platform: chatgpt
 - Conversation ID: 69c5559a-c57c-8320-9d12-4c05055479cc
 - Title: DevOps - Audit Report Spec-Driven Platform
-- Captured: 2026-03-28T10:29:09.931Z
+- Captured: 2026-03-28T10:32:13.699Z
 - URL: https://chatgpt.com/g/g-p-69be2c765b4c8191bdfe4002a1f09a53/c/69c5559a-c57c-8320-9d12-4c05055479cc
 
 ---
@@ -4899,4 +4899,27 @@ If you want, next step I can:
 
 👉 convert this into a V24 upgrade patch (ready-to-paste into your system)
 👉 or simulate a real failure scenario to stress-test your framework
+
+## User
+
+provide me a detailed prompt to tell to claude ai what you caught in an issue and what your recommendation
+
+## Assistant
+
+Here’s a high-quality, ready-to-paste prompt you can give to Claude AI (Claude Code or claude.ai) so it can analyze, fix, and upgrade your system properly based on what I found.
+
+This is written in a way that:
+
+aligns with your Spec-Driven system
+
+avoids vague outputs
+
+forces structured, deterministic fixes
+
+makes Claude act like a senior system architect (not just a reviewer)
+
+Writing
+🔧 SYSTEM AUDIT + FIX PROMPT (V23 → V24 HARDENING)
+
+You are act
 
