@@ -777,6 +777,35 @@ mark { background: var(--highlight); color: #f0f4ff; }
   .feature-grid { grid-template-columns: 1fr; }
 }
 
+.settings-section {
+  border-top: 1px solid #2a3248;
+  padding-top: 0.7rem;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.settings-section-title {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.api-key-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.api-key-input {
+  flex: 1;
+  border: 1px solid #364464;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  color: var(--accent);
+  padding: 0.5rem 0.65rem;
+  font-family: monospace;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+
 .auth-links {
   display: flex;
   gap: 0.35rem;

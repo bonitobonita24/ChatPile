@@ -155,6 +155,10 @@ function findByEmail(users, email) {
   return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
+function findByApiKey(users, apiKey) {
+  return users.find((u) => u.apiKey === apiKey && u.verified) ?? null;
+}
+
 async function ensureAuthStore() {
   await fs.mkdir(AUTH_DIR, { recursive: true });
 
@@ -182,6 +186,7 @@ async function ensureAuthStore() {
       hash: legacyAdmin.hash,
       verified: true,
       role: 'admin',
+      apiKey: db.generateApiKey(),
       createdAt: legacyAdmin.changedAt ?? new Date().toISOString(),
       changedAt: legacyAdmin.changedAt ?? new Date().toISOString(),
     };
@@ -205,6 +210,7 @@ async function ensureAuthStore() {
     hash,
     verified: true,
     role: 'admin',
+    apiKey: db.generateApiKey(),
     createdAt: new Date().toISOString(),
     changedAt: new Date().toISOString(),
   };
@@ -401,6 +407,7 @@ app.post('/api/auth/verify-email', async (req, res) => {
       hash: pending.hash,
       verified: true,
       role: 'user',
+      apiKey: db.generateApiKey(),
       createdAt: new Date().toISOString(),
       changedAt: new Date().toISOString(),
     };
@@ -559,12 +566,25 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   }
 });
 
-// ─── Conversation API (public ingest + authenticated read) ────────────────────
+// ─── Conversation API ─────────────────────────────────────────────────────────
 
-// Ingest endpoint — Tampermonkey pushes here (no auth required, uses API key)
-app.post('/api/conversations', (req, res) => {
+// Resolve user from API key (for Tampermonkey ingest)
+async function resolveApiKeyUser(req) {
+  const apiKey = req.headers['x-api-key'];
+  if (!apiKey) return null;
+  const users = await loadUsers();
+  return findByApiKey(users, apiKey);
+}
+
+// Ingest endpoint — Tampermonkey pushes here with API key
+app.post('/api/conversations', async (req, res) => {
+  const user = await resolveApiKeyUser(req);
+  if (!user) {
+    res.status(401).json({ ok: false, error: 'Invalid or missing API key. Add your key in Settings.' });
+    return;
+  }
+
   const { id, title, platform, url, captured, messages } = req.body || {};
-
   if (!id || !title || !Array.isArray(messages) || !messages.length) {
     res.status(400).json({ ok: false, error: 'Missing required fields: id, title, messages[].' });
     return;
@@ -572,6 +592,7 @@ app.post('/api/conversations', (req, res) => {
 
   try {
     const result = db.upsertConversation({
+      userId: user.id,
       id,
       title,
       platform: platform || 'unknown',
@@ -586,11 +607,12 @@ app.post('/api/conversations', (req, res) => {
   }
 });
 
-// List conversations (authenticated)
+// List conversations (session auth, scoped to user)
 app.get('/api/conversations', requireAuth, (req, res) => {
   const { platform, q, limit, offset } = req.query;
   try {
     const result = db.listConversations({
+      userId: req.session.user.userId,
       platform: platform || 'all',
       query: q || '',
       limit: Math.min(Number(limit) || 200, 500),
@@ -603,10 +625,10 @@ app.get('/api/conversations', requireAuth, (req, res) => {
   }
 });
 
-// Get single conversation with messages + snippets (authenticated)
+// Get single conversation (session auth, scoped to user)
 app.get('/api/conversations/:id', requireAuth, (req, res) => {
   try {
-    const conversation = db.getConversation(req.params.id);
+    const conversation = db.getConversation(req.session.user.userId, req.params.id);
     if (!conversation) {
       res.status(404).json({ ok: false, error: 'Conversation not found.' });
       return;
@@ -618,10 +640,10 @@ app.get('/api/conversations/:id', requireAuth, (req, res) => {
   }
 });
 
-// Delete conversation (authenticated)
+// Delete conversation (session auth, scoped to user)
 app.delete('/api/conversations/:id', requireAuth, (req, res) => {
   try {
-    db.deleteConversation(req.params.id);
+    db.deleteConversation(req.session.user.userId, req.params.id);
     res.json({ ok: true });
   } catch (e) {
     console.error('Delete error:', e.message);
@@ -629,17 +651,17 @@ app.delete('/api/conversations/:id', requireAuth, (req, res) => {
   }
 });
 
-// Stats (authenticated)
+// Stats (session auth, scoped to user)
 app.get('/api/stats', requireAuth, (_req, res) => {
   try {
-    res.json(db.getStats());
+    res.json(db.getStats(_req.session.user.userId));
   } catch (e) {
     console.error('Stats error:', e.message);
     res.status(500).json({ ok: false, error: 'Failed to get stats.' });
   }
 });
 
-// Search across all messages (authenticated)
+// Search (session auth, scoped to user)
 app.get('/api/search', requireAuth, (req, res) => {
   const { q, limit } = req.query;
   if (!q) {
@@ -647,11 +669,45 @@ app.get('/api/search', requireAuth, (req, res) => {
     return;
   }
   try {
-    const results = db.searchMessages(q, { limit: Math.min(Number(limit) || 50, 200) });
+    const results = db.searchMessages(req.session.user.userId, q, { limit: Math.min(Number(limit) || 50, 200) });
     res.json({ results });
   } catch (e) {
     console.error('Search error:', e.message);
     res.status(500).json({ ok: false, error: 'Search failed.' });
+  }
+});
+
+// Get API key (session auth)
+app.get('/api/auth/api-key', requireAuth, async (req, res) => {
+  try {
+    const users = await loadUsers();
+    const user = users.find((u) => u.id === req.session.user.userId);
+    if (!user) { res.status(404).json({ ok: false, error: 'User not found.' }); return; }
+
+    // Generate key if user doesn't have one yet (migrated users)
+    if (!user.apiKey) {
+      user.apiKey = db.generateApiKey();
+      await saveUsers(users);
+    }
+
+    res.json({ ok: true, apiKey: user.apiKey });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'Failed to get API key.' });
+  }
+});
+
+// Regenerate API key (session auth)
+app.post('/api/auth/regenerate-api-key', requireAuth, async (req, res) => {
+  try {
+    const users = await loadUsers();
+    const user = users.find((u) => u.id === req.session.user.userId);
+    if (!user) { res.status(404).json({ ok: false, error: 'User not found.' }); return; }
+
+    user.apiKey = db.generateApiKey();
+    await saveUsers(users);
+    res.json({ ok: true, apiKey: user.apiKey });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'Failed to regenerate API key.' });
   }
 });
 

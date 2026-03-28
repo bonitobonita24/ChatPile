@@ -27,10 +27,11 @@
   "use strict";
 
   // ━━━ CONFIG ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const API_URL = "https://your-domain.com";        // ← Replace with your dashboard URL
+  const API_URL = "https://your-domain.com";  // Your dashboard URL
   const AUTOSAVE_MS = 3 * 60 * 1000;               // 3 minutes
 
   // ━━━ STORAGE KEYS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const K_API_KEY = "archiver_api_key";
   const K_AUTOSAVE = "archiver_autosave";
   const K_LAST_HASH = "archiver_last_hash";
   const K_COLLAPSED = "archiver_collapsed";
@@ -187,12 +188,17 @@
   }
 
   // ━━━ API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function getApiKey() { return GM_getValue(K_API_KEY, ""); }
+  function setApiKey(v) { GM_setValue(K_API_KEY, v); }
+
   function pushToApi(payload) {
+    const apiKey = getApiKey();
+    if (!apiKey) return Promise.reject(new Error("No API key set. Click Set API Key."));
     return new Promise((resolve, reject) => {
       GM_xmlhttpRequest({
         method: "POST",
         url: `${API_URL}/api/conversations`,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
         data: JSON.stringify(payload),
         timeout: 30000,
         onload: (res) => {
@@ -367,6 +373,19 @@
     autoRow.appendChild(autoCb);
     autoRow.appendChild(document.createTextNode("Auto-save"));
     content.appendChild(autoRow);
+
+    const btnKey = makeButton("Set API Key");
+    btnKey.onclick = () => {
+      const current = getApiKey();
+      const v = prompt("Paste your API Key from Settings → Tampermonkey API Key:", current || "");
+      if (v && v.trim()) { setApiKey(v.trim()); toast("API key saved."); }
+    };
+    content.appendChild(btnKey);
+
+    const keyStatus = document.createElement("div");
+    keyStatus.style.cssText = "font-size:11px;opacity:.6;margin-top:2px;margin-bottom:4px;";
+    keyStatus.textContent = getApiKey() ? `Key: ...${getApiKey().slice(-8)}` : "No API key set";
+    content.appendChild(keyStatus);
 
     const info = document.createElement("div");
     info.style.cssText = "font-size:11px;opacity:.6;margin-top:4px;";

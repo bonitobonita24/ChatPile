@@ -19,38 +19,44 @@ function getDb() {
 function migrate(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS conversations (
-      id TEXT PRIMARY KEY,
+      id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       title TEXT NOT NULL,
       platform TEXT NOT NULL DEFAULT 'unknown',
       url TEXT,
       captured TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      conversation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       role TEXT NOT NULL,
       text TEXT NOT NULL,
       sort_order INTEGER NOT NULL,
-      UNIQUE(conversation_id, sort_order)
+      FOREIGN KEY (conversation_id, user_id) REFERENCES conversations(id, user_id) ON DELETE CASCADE,
+      UNIQUE(conversation_id, user_id, sort_order)
     );
 
     CREATE TABLE IF NOT EXISTS code_snippets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      conversation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
       message_index INTEGER NOT NULL,
       role TEXT NOT NULL,
       language TEXT NOT NULL DEFAULT 'plaintext',
       code TEXT NOT NULL,
-      detected INTEGER NOT NULL DEFAULT 0
+      detected INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (conversation_id, user_id) REFERENCES conversations(id, user_id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_snippets_conv ON code_snippets(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_platform ON conversations(platform);
-    CREATE INDEX IF NOT EXISTS idx_conversations_captured ON conversations(captured DESC);
+    CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_snippets_conv ON code_snippets(conversation_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id, captured DESC);
+    CREATE INDEX IF NOT EXISTS idx_conversations_platform ON conversations(user_id, platform);
   `);
 }
 
@@ -128,40 +134,46 @@ function extractCodeSnippets(messages) {
   return snippets;
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+// ─── API Key helpers ─────────────────────────────────────────────────────────
 
-function upsertConversation({ id, title, platform, url, captured, messages }) {
+function generateApiKey() {
+  return 'aichat_' + crypto.randomBytes(24).toString('hex');
+}
+
+// ─── Public API (all scoped by user_id) ──────────────────────────────────────
+
+function upsertConversation({ userId, id, title, platform, url, captured, messages }) {
   const db = getDb();
   const now = new Date().toISOString();
 
   const tx = db.transaction(() => {
     db.prepare(`
-      INSERT INTO conversations (id, title, platform, url, captured, updated_at, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
+      INSERT INTO conversations (id, user_id, title, platform, url, captured, updated_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id, user_id) DO UPDATE SET
         title = excluded.title,
         platform = excluded.platform,
         url = excluded.url,
         captured = excluded.captured,
         updated_at = excluded.updated_at
-    `).run(id, title, platform, url || null, captured, now, now);
+    `).run(id, userId, title, platform, url || null, captured, now, now);
 
-    db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(id);
-    db.prepare('DELETE FROM code_snippets WHERE conversation_id = ?').run(id);
+    db.prepare('DELETE FROM messages WHERE conversation_id = ? AND user_id = ?').run(id, userId);
+    db.prepare('DELETE FROM code_snippets WHERE conversation_id = ? AND user_id = ?').run(id, userId);
 
     const insertMsg = db.prepare(
-      'INSERT INTO messages (conversation_id, role, text, sort_order) VALUES (?, ?, ?, ?)'
+      'INSERT INTO messages (conversation_id, user_id, role, text, sort_order) VALUES (?, ?, ?, ?, ?)'
     );
     messages.forEach((msg, i) => {
-      insertMsg.run(id, msg.role, msg.text, i);
+      insertMsg.run(id, userId, msg.role, msg.text, i);
     });
 
     const snippets = extractCodeSnippets(messages);
     const insertSnippet = db.prepare(
-      'INSERT INTO code_snippets (conversation_id, message_index, role, language, code, detected) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO code_snippets (conversation_id, user_id, message_index, role, language, code, detected) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     snippets.forEach((s) => {
-      insertSnippet.run(id, s.messageIndex, s.role, s.language, s.code, s.detected ? 1 : 0);
+      insertSnippet.run(id, userId, s.messageIndex, s.role, s.language, s.code, s.detected ? 1 : 0);
     });
   });
 
@@ -169,10 +181,10 @@ function upsertConversation({ id, title, platform, url, captured, messages }) {
   return { id, messagesCount: messages.length };
 }
 
-function listConversations({ platform, query, limit = 200, offset = 0 } = {}) {
+function listConversations({ userId, platform, query, limit = 200, offset = 0 } = {}) {
   const db = getDb();
-  const conditions = [];
-  const params = [];
+  const conditions = ['c.user_id = ?'];
+  const params = [userId];
 
   if (platform && platform !== 'all') {
     conditions.push('c.platform = ?');
@@ -181,16 +193,16 @@ function listConversations({ platform, query, limit = 200, offset = 0 } = {}) {
 
   if (query) {
     conditions.push(`(c.title LIKE ? OR EXISTS (
-      SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.text LIKE ?
+      SELECT 1 FROM messages m WHERE m.conversation_id = c.id AND m.user_id = c.user_id AND m.text LIKE ?
     ))`);
     params.push(`%${query}%`, `%${query}%`);
   }
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = `WHERE ${conditions.join(' AND ')}`;
 
   const conversations = db.prepare(`
     SELECT c.*,
-      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count
+      (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.user_id = c.user_id) AS message_count
     FROM conversations c
     ${where}
     ORDER BY c.captured DESC
@@ -204,55 +216,55 @@ function listConversations({ platform, query, limit = 200, offset = 0 } = {}) {
   return { conversations, total };
 }
 
-function getConversation(id) {
+function getConversation(userId, id) {
   const db = getDb();
-  const conversation = db.prepare('SELECT * FROM conversations WHERE id = ?').get(id);
+  const conversation = db.prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ?').get(id, userId);
   if (!conversation) return null;
 
   conversation.messages = db.prepare(
-    'SELECT role, text FROM messages WHERE conversation_id = ? ORDER BY sort_order'
-  ).all(id);
+    'SELECT role, text FROM messages WHERE conversation_id = ? AND user_id = ? ORDER BY sort_order'
+  ).all(id, userId);
 
   conversation.codeSnippets = db.prepare(
-    'SELECT message_index AS messageIndex, role, language, code, detected FROM code_snippets WHERE conversation_id = ? ORDER BY id'
-  ).all(id);
+    'SELECT message_index AS messageIndex, role, language, code, detected FROM code_snippets WHERE conversation_id = ? AND user_id = ? ORDER BY id'
+  ).all(id, userId);
 
   conversation.codeSnippets.forEach(s => { s.detected = Boolean(s.detected); });
 
   return conversation;
 }
 
-function deleteConversation(id) {
+function deleteConversation(userId, id) {
   const db = getDb();
-  db.prepare('DELETE FROM conversations WHERE id = ?').run(id);
+  db.prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?').run(id, userId);
 }
 
-function getStats() {
+function getStats(userId) {
   const db = getDb();
-  const stats = db.prepare(`
+  return db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM conversations) AS conversations,
-      (SELECT COUNT(*) FROM code_snippets) AS codeSnippets,
-      (SELECT COUNT(*) FROM messages) AS messages
-  `).get();
-  return stats;
+      (SELECT COUNT(*) FROM conversations WHERE user_id = ?) AS conversations,
+      (SELECT COUNT(*) FROM code_snippets WHERE user_id = ?) AS codeSnippets,
+      (SELECT COUNT(*) FROM messages WHERE user_id = ?) AS messages
+  `).get(userId, userId, userId);
 }
 
-function searchMessages(query, { limit = 50 } = {}) {
+function searchMessages(userId, query, { limit = 50 } = {}) {
   const db = getDb();
   return db.prepare(`
     SELECT m.conversation_id, m.role, m.text, m.sort_order,
            c.title AS conversation_title, c.platform, c.captured
     FROM messages m
-    JOIN conversations c ON c.id = m.conversation_id
-    WHERE m.text LIKE ?
+    JOIN conversations c ON c.id = m.conversation_id AND c.user_id = m.user_id
+    WHERE m.user_id = ? AND m.text LIKE ?
     ORDER BY c.captured DESC
     LIMIT ?
-  `).all(`%${query}%`, limit);
+  `).all(userId, `%${query}%`, limit);
 }
 
 module.exports = {
   getDb,
+  generateApiKey,
   upsertConversation,
   listConversations,
   getConversation,

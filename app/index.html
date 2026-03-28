@@ -104,20 +104,37 @@
     </div>
 
     <div id="settingsOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
-      <form id="changePasswordForm" class="auth-card" autocomplete="off">
-        <h2 id="settingsTitle">Security Settings</h2>
-        <p class="auth-hint">Change your password.</p>
-        <label for="currentPassword">Current Password</label>
-        <input id="currentPassword" name="currentPassword" type="password" required />
-        <label for="newPassword">New Password</label>
-        <input id="newPassword" name="newPassword" type="password" minlength="12" required />
-        <label for="confirmPassword">Confirm New Password</label>
-        <input id="confirmPassword" name="confirmPassword" type="password" minlength="12" required />
-        <div class="settings-actions">
-          <button id="savePasswordBtn" type="submit">Save Password</button>
-          <button id="closeSettingsBtn" type="button" class="secondary-btn">Close</button>
+      <div class="auth-card" style="max-width:480px;">
+        <h2 id="settingsTitle">Settings</h2>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">Tampermonkey API Key</h3>
+          <p class="auth-hint">Paste this key into your Tampermonkey script to link conversations to your account.</p>
+          <div class="api-key-row">
+            <input id="apiKeyDisplay" type="text" class="api-key-input" readonly value="Loading..." />
+            <button type="button" id="copyApiKeyBtn" class="export-btn" title="Copy">Copy</button>
+            <button type="button" id="regenApiKeyBtn" class="export-btn" title="Generate new key">Regenerate</button>
+          </div>
+          <p id="apiKeyStatus" class="auth-status" aria-live="polite"></p>
         </div>
-        <p id="settingsStatus" class="auth-status" aria-live="polite"></p>
+
+        <form id="changePasswordForm" autocomplete="off" class="settings-section">
+          <h3 class="settings-section-title">Change Password</h3>
+          <label for="currentPassword">Current Password</label>
+          <input id="currentPassword" name="currentPassword" type="password" required />
+          <label for="newPassword">New Password</label>
+          <input id="newPassword" name="newPassword" type="password" minlength="12" required />
+          <label for="confirmPassword">Confirm New Password</label>
+          <input id="confirmPassword" name="confirmPassword" type="password" minlength="12" required />
+          <div class="settings-actions">
+            <button id="savePasswordBtn" type="submit">Save Password</button>
+          </div>
+          <p id="settingsStatus" class="auth-status" aria-live="polite"></p>
+        </form>
+
+        <div class="settings-actions" style="margin-top:0.5rem;">
+          <button id="closeSettingsBtn" type="button" class="secondary-btn" style="width:100%;">Close</button>
+        </div>
       </form>
     </div>
 
@@ -282,220 +299,60 @@
           <div class="guide-step">
             <span class="guide-num">2</span>
             <div>
-              <h4>Create a GitHub Personal Access Token</h4>
-              <p>Go to <strong>GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Tokens (classic)</strong>. Create a new token with the <code>repo</code> scope. Copy the token — you'll need it in the script.</p>
+              <h4>Get Your API Key</h4>
+              <p>Sign in to AI Chat Consolidator &rarr; click <strong>Settings</strong> &rarr; copy your <strong>Tampermonkey API Key</strong>. This key links saved conversations to your account.</p>
             </div>
           </div>
           <div class="guide-step">
             <span class="guide-num">3</span>
             <div>
-              <h4>Create a GitHub Repository</h4>
-              <p>Create a repository (e.g. <code>AI-Chats</code>) where conversations will be stored. It can be private or public.</p>
+              <h4>Add the Script</h4>
+              <p>Open the Tampermonkey dashboard &rarr; click <strong>"Create a new script"</strong> &rarr; delete the default template &rarr; paste the full script from <code>tampermonkey-script.example.md</code> &rarr; update the <code>API_URL</code> with your dashboard URL &rarr; save (Ctrl+S).</p>
             </div>
           </div>
           <div class="guide-step">
             <span class="guide-num">4</span>
             <div>
-              <h4>Add the Script</h4>
-              <p>Open the Tampermonkey dashboard &rarr; click <strong>"Create a new script"</strong> &rarr; delete the default template &rarr; paste the script below &rarr; update the <code>CONFIG</code> section with your GitHub token, username, and repo name &rarr; save (Ctrl+S).</p>
+              <h4>Set Your API Key</h4>
+              <p>Visit any supported AI chat site. You'll see an archiver panel in the corner. Click <strong>"Set API Key"</strong> and paste the key you copied from Settings.</p>
             </div>
           </div>
           <div class="guide-step">
             <span class="guide-num">5</span>
             <div>
               <h4>Start Chatting</h4>
-              <p>Visit <a href="https://chatgpt.com" target="_blank" rel="noopener">chatgpt.com</a> or <a href="https://claude.ai" target="_blank" rel="noopener">claude.ai</a>. You'll see a <strong>"Save Chat"</strong> button in the bottom-left corner. Conversations auto-save every 3 minutes when changes are detected.</p>
+              <p>Conversations auto-save every 3 minutes. Click <strong>"Save"</strong> for manual saves. Saved chats appear instantly in your dashboard — no rebuild or deploy needed.</p>
             </div>
           </div>
         </div>
 
-        <h3 class="script-title">Sample Tampermonkey Script</h3>
-        <pre class="script-block"><code>// ==UserScript==
-// @name         AI Chat Archiver
-// @namespace    https://your-domain.com
-// @version      1.0
-// @description  Auto-save ChatGPT &amp; Claude AI conversations to GitHub
-// @match        https://chatgpt.com/*
-// @match        https://chat.openai.com/*
-// @match        https://claude.ai/*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @connect      api.github.com
-// ==/UserScript==
+        <h3 class="script-title">Tampermonkey Script</h3>
+        <p class="auth-hint" style="margin-bottom:0.5rem;">Get the full script from the <code>tampermonkey-script.example.md</code> file in the project repository. Below is the key configuration section:</p>
+        <pre class="script-block"><code>// After installing the full script, configure these two values:
 
-(function () {
-  'use strict';
+// 1. Set your dashboard URL
+const API_URL = "https://your-domain.com";
 
-  // ━━━ CONFIGURATION (edit these) ━━━━━━━━━━━━━━━━━━
-  const CONFIG = {
-    GITHUB_TOKEN: 'ghp_xxxxxxxxxxxxxxxxxxxx', // Your GitHub PAT
-    GITHUB_OWNER: 'your-username',             // GitHub username
-    GITHUB_REPO:  'AI-Chats',                  // Repository name
-    BRANCH:       'main',
-    LOG_PATH:     'logs/conversations',
-    AUTOSAVE_MS:  3 * 60 * 1000,               // Auto-save every 3 minutes
-  };
+// 2. Click "Set API Key" button in the Tampermonkey panel
+//    and paste your key from Settings &rarr; Tampermonkey API Key
 
-  // ━━━ PLATFORM DETECTION ━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function detectPlatform() {
-    const h = location.hostname;
-    if (h.includes('chatgpt') || h.includes('openai')) return 'chatgpt';
-    if (h.includes('claude')) return 'claudeai';
-    return null;
-  }
+// The script will then:
+// - Show a "Save" button on ChatGPT, Claude, Gemini, etc.
+// - Auto-save every 3 minutes when changes are detected
+// - Send conversations directly to your dashboard via API
+// - Each conversation is linked to your account via the API key
 
-  // ━━━ EXTRACTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function extractChatGPT() {
-    const msgs = [];
-    document.querySelectorAll('[data-message-author-role]').forEach(el =&gt; {
-      const role = el.getAttribute('data-message-author-role');
-      const prose = el.querySelector('.markdown, .prose, [class*="markdown"]');
-      const text = (prose?.innerText || el.innerText || '').trim();
-      if (text) msgs.push({ role: role === 'user' ? 'User' : 'Assistant', text });
-    });
-    return msgs;
-  }
-
-  function extractClaude() {
-    const msgs = [];
-    document.querySelectorAll('[data-testid="user-message"]').forEach(el =&gt; {
-      const text = (el.innerText || '').trim();
-      if (text) msgs.push({ role: 'User', text });
-    });
-    document.querySelectorAll('.font-claude-message').forEach(el =&gt; {
-      const clone = el.cloneNode(true);
-      clone.querySelectorAll('button, [role="button"], svg, form, ' +
-        '[class*="action"], [class*="toolbar"], [class*="copy"]')
-        .forEach(n =&gt; n.remove());
-      const text = (clone.innerText || '').trim();
-      if (text &amp;&amp; text.length &gt; 10) msgs.push({ role: 'Assistant', text });
-    });
-    return msgs;
-  }
-
-  // ━━━ MARKDOWN FORMAT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function getTitle() {
-    return document.title.replace(/ \|.*$/, '').trim() || 'Untitled';
-  }
-
-  function getConvId() {
-    const m = location.pathname.match(/\/([a-zA-Z0-9-]+)$/);
-    return m ? m[1] : 'conv_' + Date.now();
-  }
-
-  function toMarkdown(platform, messages) {
-    const title = getTitle(), id = getConvId(), now = new Date().toISOString();
-    let md = '# ' + (platform === 'chatgpt' ? 'ChatGPT' : 'Claude AI') +
-             ' Conversation Log\n';
-    md += '- Conversation ID: ' + id + '\n';
-    md += '- Title: ' + title + '\n- Captured: ' + now + '\n';
-    md += '- Platform: ' + platform + '\n- URL: ' + location.href + '\n---\n\n';
-    messages.forEach(m =&gt; { md += '## ' + m.role + '\n\n' + m.text + '\n\n'; });
-    return { md, title, id, platform };
-  }
-
-  // ━━━ GITHUB API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function slug(s) {
-    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
-  }
-
-  function gmFetch(url, method, body) {
-    return new Promise((resolve, reject) =&gt; {
-      GM_xmlhttpRequest({
-        method, url,
-        headers: {
-          Authorization: 'token ' + CONFIG.GITHUB_TOKEN,
-          'Content-Type': 'application/json',
-          Accept: 'application/vnd.github.v3+json',
-        },
-        data: body ? JSON.stringify(body) : undefined,
-        onload: r =&gt; r.status &lt; 300
-          ? resolve(JSON.parse(r.responseText || '{}'))
-          : reject(new Error('GitHub ' + r.status)),
-        onerror: reject,
-      });
-    });
-  }
-
-  async function pushToGitHub(content, filePath, msg) {
-    const url = 'https://api.github.com/repos/' + CONFIG.GITHUB_OWNER +
-                '/' + CONFIG.GITHUB_REPO + '/contents/' + filePath;
-    let sha = null;
-    try { sha = (await gmFetch(url, 'GET')).sha; } catch {}
-    const body = {
-      message: msg,
-      content: btoa(unescape(encodeURIComponent(content))),
-      branch: CONFIG.BRANCH,
-    };
-    if (sha) body.sha = sha;
-    return gmFetch(url, 'PUT', body);
-  }
-
-  // ━━━ SAVE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function simpleHash(s) {
-    let h = 0;
-    for (let i = 0; i &lt; s.length; i++) h = ((h &lt;&lt; 5) - h + s.charCodeAt(i)) | 0;
-    return h;
-  }
-
-  async function save() {
-    const platform = detectPlatform();
-    const messages = platform === 'chatgpt' ? extractChatGPT() : extractClaude();
-    if (!messages.length) { toast('No messages found.'); return; }
-    const { md, title, id } = toMarkdown(platform, messages);
-    const path = CONFIG.LOG_PATH + '/' + platform + '/' + slug(title) + '__' + id + '.md';
-    toast('Saving...');
-    try {
-      await pushToGitHub(md, path, 'Auto-save conversation: ' + title);
-      GM_setValue('hash_' + id, simpleHash(md));
-      toast('Saved! (' + messages.length + ' messages)');
-    } catch (e) { toast('Save failed: ' + e.message); }
-  }
-
-  // ━━━ UI ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  function toast(msg) {
-    let el = document.getElementById('ai-archiver-toast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'ai-archiver-toast';
-      Object.assign(el.style, {
-        position:'fixed',bottom:'20px',right:'20px',zIndex:'99999',
-        background:'#1a2130',color:'#e5ecff',border:'1px solid #7ba2ff',
-        borderRadius:'8px',padding:'10px 16px',fontSize:'14px',
-        fontFamily:'system-ui',maxWidth:'320px',boxShadow:'0 4px 20px rgba(0,0,0,.4)',
-      });
-      document.body.appendChild(el);
-    }
-    el.textContent = msg; el.style.display = 'block';
-    clearTimeout(el._t);
-    el._t = setTimeout(() =&gt; { el.style.display = 'none'; }, 3000);
-  }
-
-  // ━━━ INIT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (!detectPlatform()) return;
-  setTimeout(() =&gt; {
-    const btn = document.createElement('button');
-    btn.textContent = 'Save Chat';
-    Object.assign(btn.style, {
-      position:'fixed',bottom:'20px',left:'20px',zIndex:'99999',
-      background:'#7ba2ff',color:'#0b1020',border:'none',borderRadius:'8px',
-      padding:'8px 16px',fontSize:'14px',fontWeight:'700',cursor:'pointer',
-    });
-    btn.onclick = save;
-    document.body.appendChild(btn);
-    toast('AI Chat Archiver active');
-  }, 2000);
-
-  // Auto-save when content changes
-  setInterval(() =&gt; {
-    const p = detectPlatform();
-    const msgs = p === 'chatgpt' ? extractChatGPT() : extractClaude();
-    if (!msgs.length) return;
-    const { md, id } = toMarkdown(p, msgs);
-    if (simpleHash(md) !== GM_getValue('hash_' + id, 0)) save();
-  }, CONFIG.AUTOSAVE_MS);
-})();</code></pre>
+// Supported platforms:
+// @match https://chatgpt.com/*
+// @match https://claude.ai/*
+// @match https://gemini.google.com/*
+// @match https://copilot.microsoft.com/*
+// @match https://perplexity.ai/*
+// @match https://chat.deepseek.com/*
+// @match https://grok.com/*
+// @match https://chat.mistral.ai/*
+// @match https://huggingface.co/chat/*
+// @match https://poe.com/*</code></pre>
       </section>
 
       <!-- Footer CTA -->

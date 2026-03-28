@@ -96,6 +96,10 @@ const els = {
   settingsBtn: document.querySelector('#settingsBtn'),
   logoutBtn: document.querySelector('#logoutBtn'),
   settingsOverlay: document.querySelector('#settingsOverlay'),
+  apiKeyDisplay: document.querySelector('#apiKeyDisplay'),
+  copyApiKeyBtn: document.querySelector('#copyApiKeyBtn'),
+  regenApiKeyBtn: document.querySelector('#regenApiKeyBtn'),
+  apiKeyStatus: document.querySelector('#apiKeyStatus'),
   changePasswordForm: document.querySelector('#changePasswordForm'),
   currentPassword: document.querySelector('#currentPassword'),
   newPassword: document.querySelector('#newPassword'),
@@ -442,11 +446,46 @@ function bindAuthEvents() {
   });
 
   // ── Settings ───────────────────────────────────────────────────────────────
-  els.settingsBtn.addEventListener('click', () => {
+  els.settingsBtn.addEventListener('click', async () => {
     els.changePasswordForm.reset();
     setAuthStatus(els.settingsStatus, '', '');
+    setAuthStatus(els.apiKeyStatus, '', '');
     els.settingsOverlay.hidden = false;
-    els.currentPassword.focus();
+    // Load API key
+    els.apiKeyDisplay.value = 'Loading...';
+    try {
+      const resp = await authFetch('/api/auth/api-key', { method: 'GET' });
+      if (resp && resp.ok) {
+        const data = await resp.json();
+        els.apiKeyDisplay.value = data.apiKey || 'Error';
+      } else {
+        els.apiKeyDisplay.value = 'Failed to load';
+      }
+    } catch {
+      els.apiKeyDisplay.value = 'Failed to load';
+    }
+  });
+
+  els.copyApiKeyBtn.addEventListener('click', async () => {
+    const key = els.apiKeyDisplay.value;
+    if (!key || key === 'Loading...' || key === 'Failed to load') return;
+    const ok = await copyTextToClipboard(key);
+    setAuthStatus(els.apiKeyStatus, ok ? 'API key copied!' : 'Copy failed.', ok ? 'success' : 'error');
+  });
+
+  els.regenApiKeyBtn.addEventListener('click', async () => {
+    if (!confirm('Regenerate your API key? Your current Tampermonkey script will stop working until you update it with the new key.')) return;
+    try {
+      const resp = await apiPost('/api/auth/regenerate-api-key', {});
+      if (resp.ok && resp.apiKey) {
+        els.apiKeyDisplay.value = resp.apiKey;
+        setAuthStatus(els.apiKeyStatus, 'New API key generated. Update your Tampermonkey script.', 'success');
+      } else {
+        setAuthStatus(els.apiKeyStatus, resp.error || 'Failed to regenerate.', 'error');
+      }
+    } catch {
+      setAuthStatus(els.apiKeyStatus, 'Failed to regenerate.', 'error');
+    }
   });
 
   els.closeSettingsBtn.addEventListener('click', () => {
