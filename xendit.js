@@ -70,6 +70,12 @@ async function createRecurringPlan({ customerId, userId, email, returnUrl, cance
   });
 }
 
+// Look up existing customer by reference_id
+async function getCustomerByRef(referenceId) {
+  const data = await xenditRequest('GET', `/customers?reference_id=${encodeURIComponent(referenceId)}`);
+  return data?.data?.[0] || data?.[0] || null;
+}
+
 // Get plan details
 async function getPlan(planId) {
   return xenditRequest('GET', `/recurring/plans/${planId}`);
@@ -92,6 +98,7 @@ function isConfigured() {
 
 module.exports = {
   createCustomer,
+  getCustomerByRef,
   createRecurringPlan,
   getPlan,
   deactivatePlan,
