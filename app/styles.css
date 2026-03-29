@@ -52,10 +52,6 @@ header p { margin: 0.35rem 0 0; color: var(--muted); }
   gap: 0.5rem;
 }
 
-.auth-overlay[hidden] {
-  display: none !important;
-}
-
 .auth-overlay {
   position: fixed;
   inset: 0;
