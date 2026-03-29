@@ -44,13 +44,13 @@ async function createCustomer({ userId, email, username }) {
 // Create a recurring plan for a user
 async function createRecurringPlan({ customerId, userId, email, returnUrl, cancelUrl }) {
   return xenditRequest('POST', '/recurring/plans', {
-    reference_id: `plan_${userId}`,
+    reference_id: `plan_${userId}_${Date.now()}`,
     customer_id: customerId,
     recurring_action: 'PAYMENT',
     currency: PLAN_CURRENCY,
     amount: PLAN_AMOUNT,
     schedule: {
-      reference_id: `schedule_${userId}`,
+      reference_id: `schedule_${userId}_${Date.now()}`,
       interval: 'MONTH',
       interval_count: 1,
       total_retry: 3,

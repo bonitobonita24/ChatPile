@@ -444,27 +444,19 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
       return;
     }
 
-    // If there's an existing pending plan, try to get its payment URL
-    if (user.xendit_plan_id && user.subscription_status === 'pending') {
+    // If there's an existing plan, check its state
+    if (user.xendit_plan_id) {
       try {
         const existing = await xendit.getPlan(user.xendit_plan_id);
-        if (existing.status === 'REQUIRES_ACTION') {
-          const payUrl = existing.actions?.find(a => a.action === 'AUTH')?.url
-            || existing.actions?.find(a => a.url_type === 'WEB')?.url
-            || existing.actions?.[0]?.url;
-          if (payUrl) {
-            res.json({ ok: true, planId: existing.id, approvalUrl: payUrl });
-            return;
-          }
-        } else if (existing.status === 'ACTIVE') {
+        if (existing.status === 'ACTIVE') {
           const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
           await db.updateSubscription(user.id, { status: 'active', expiresAt: nextMonth.toISOString(), upgradeToPremium: true });
           res.json({ ok: true, tier: 'premium' });
           return;
         }
-        // Plan is inactive/expired — deactivate and create fresh
-        try { await xendit.deactivatePlan(user.xendit_plan_id); } catch {}
       } catch {}
+      // Deactivate any stale/pending/expired plan before creating fresh
+      try { await xendit.deactivatePlan(user.xendit_plan_id); } catch {}
     }
 
     // Create or reuse Xendit customer
