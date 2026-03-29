@@ -1,0 +1,81 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ai-chats-prod-db
+    environment:
+      - POSTGRES_DB=aichats
+      - POSTGRES_USER=${PG_USER:-aichats}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:?PG_PASSWORD is required}
+    volumes:
+      - ai-chats-prod-pgdata:/var/lib/postgresql/data
+    networks:
+      - ai-chats-prod-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-aichats}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ${DOCKER_IMAGE:-your-dockerhub-username/ai-chats:latest}
+
+    container_name: ai-chats-prod
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.aichat.rule=Host(`${COOKIE_DOMAIN:?COOKIE_DOMAIN is required}`)"
+      - "traefik.http.routers.aichat.entrypoints=websecure"
+      - "traefik.http.routers.aichat.tls=true"
+      - "traefik.http.routers.aichat.tls.certresolver=letsencrypt"
+      - "traefik.http.services.aichat.loadbalancer.server.port=4173"
+
+    environment:
+      - NODE_ENV=production
+      - PORT=4173
+      - DATABASE_URL=postgresql://${PG_USER:-aichats}:${PG_PASSWORD:?PG_PASSWORD is required}@db:5432/aichats
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
+      - COOKIE_SECURE=true
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:?COOKIE_DOMAIN is required}
+      - APP_ADMIN_USERNAME=${APP_ADMIN_USERNAME:?APP_ADMIN_USERNAME is required}
+      - APP_ADMIN_EMAIL=${APP_ADMIN_EMAIL:-admin@localhost}
+      - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is required}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - APP_URL=${APP_URL:?APP_URL is required}
+
+    networks:
+      - ai-chats-prod-net
+      - proxy
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4173/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  ai-chats-prod-pgdata:
+    name: ai-chats-prod-pgdata
+
+networks:
+  ai-chats-prod-net:
+    name: ai-chats-prod-net
+  proxy:
+    external: true
