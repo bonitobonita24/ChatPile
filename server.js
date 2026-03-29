@@ -444,7 +444,17 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
       return;
     }
 
+    // Create or reuse Xendit customer
+    let customer;
+    try {
+      customer = await xendit.createCustomer({ userId: user.id, email: user.email, username: user.username });
+    } catch (e) {
+      // Customer may already exist — try to proceed with reference_id
+      if (!String(e.message).includes('DUPLICATE')) throw e;
+    }
+
     const plan = await xendit.createRecurringPlan({
+      customerId: customer?.id || `user_${user.id}`,
       userId: user.id,
       email: user.email,
       returnUrl: `${APP_URL}/?subscription=success`,

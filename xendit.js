@@ -29,11 +29,23 @@ async function xenditRequest(method, path, body) {
   return data;
 }
 
-// Create a recurring plan for a user
-async function createRecurringPlan({ userId, email, returnUrl, cancelUrl }) {
-  return xenditRequest('POST', '/recurring/plans', {
+// Create a Xendit customer (required for recurring plans)
+async function createCustomer({ userId, email, username }) {
+  return xenditRequest('POST', '/customers', {
     reference_id: `user_${userId}`,
-    customer_id: null,
+    email,
+    type: 'INDIVIDUAL',
+    individual_detail: {
+      given_names: username || email.split('@')[0],
+    },
+  });
+}
+
+// Create a recurring plan for a user
+async function createRecurringPlan({ customerId, userId, email, returnUrl, cancelUrl }) {
+  return xenditRequest('POST', '/recurring/plans', {
+    reference_id: `plan_${userId}`,
+    customer_id: customerId,
     recurring_action: 'PAYMENT',
     currency: PLAN_CURRENCY,
     amount: PLAN_AMOUNT,
@@ -79,6 +91,7 @@ function isConfigured() {
 }
 
 module.exports = {
+  createCustomer,
   createRecurringPlan,
   getPlan,
   deactivatePlan,
