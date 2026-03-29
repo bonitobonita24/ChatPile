@@ -200,19 +200,51 @@
     return msgs;
   }
 
-  async function extractClaude() {
-    const scroller = document.querySelector('[class*="overflow-y-auto"]') || document.querySelector("main") || document.documentElement;
-    const orig = scroller.scrollTop;
+  async function scrollClaudeToLoadAll() {
+    const scroller =
+      document.querySelector('[class*="overflow-y-auto"]') ||
+      document.querySelector("main") ||
+      document.documentElement;
+
+    // Scroll to top first so all messages load from the beginning
     scroller.scrollTop = 0;
-    await sleep(400);
-    const step = Math.max(window.innerHeight * 0.8, 400);
-    let pos = 0;
-    while (pos < scroller.scrollHeight) { pos += step; scroller.scrollTop = pos; await sleep(200); }
-    await sleep(300);
-    scroller.scrollTop = orig;
-    await sleep(200);
+    await sleep(600);
+
+    // Scroll down in steps, re-check scrollHeight each iteration
+    // because Claude adds DOM elements as you scroll
+    const step = Math.max(window.innerHeight * 0.7, 350);
+    let lastHeight = 0;
+    let stableCount = 0;
+
+    while (stableCount < 3) {
+      const currentHeight = scroller.scrollHeight;
+      scroller.scrollTop += step;
+      await sleep(400);
+
+      if (currentHeight === lastHeight) {
+        stableCount++;
+      } else {
+        stableCount = 0;
+      }
+      lastHeight = currentHeight;
+
+      // Safety: don't scroll forever
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 10) {
+        stableCount++;
+      }
+    }
+
+    // Scroll to bottom to ensure last messages are rendered
+    scroller.scrollTop = scroller.scrollHeight;
+    await sleep(500);
+  }
+
+  async function extractClaude() {
+    await scrollClaudeToLoadAll();
 
     const msgs = [];
+
+    // Strategy 1: user-message testid + sibling turns
     const userNodes = [...document.querySelectorAll('[data-testid="user-message"]')];
     if (userNodes.length > 0) {
       const wrapper = userNodes[0].closest('[class*="group"], article, [data-testid]')?.parentElement;
@@ -231,14 +263,52 @@
           }
         }
       }
+
+      // Fallback: pair user nodes with siblings if wrapper walk failed
+      if (!msgs.length) {
+        userNodes.forEach((node) => {
+          const text = (node.innerText || "").trim();
+          if (text) msgs.push({ role: "User", text, _el: node });
+          let sibling = node.closest("div, article")?.nextElementSibling;
+          while (sibling) {
+            const aiText = (sibling.innerText || "").trim();
+            if (aiText && aiText !== text && aiText.length > 10) {
+              msgs.push({ role: "Assistant", text: aiText, _el: sibling });
+              break;
+            }
+            sibling = sibling.nextElementSibling;
+          }
+        });
+      }
     }
 
+    // Strategy 2: alternating articles
     if (!msgs.length) {
       document.querySelectorAll("main article").forEach((el, i) => {
         const text = (el.innerText || "").trim();
         if (text) msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text, _el: el });
       });
     }
+
+    // Strategy 3: broad attribute search
+    if (!msgs.length) {
+      const seen = new Set();
+      const nodes = [
+        ...document.querySelectorAll('[data-testid*="human"], [data-testid*="user"]'),
+        ...document.querySelectorAll('[data-testid*="assistant"], [data-testid*="claude"]'),
+        ...document.querySelectorAll('[class*="human-turn"], [class*="assistant-turn"]'),
+      ].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+
+      for (const node of nodes) {
+        const text = (node.innerText || "").trim();
+        if (!text || seen.has(text)) continue;
+        seen.add(text);
+        const lower = `${node.getAttribute("data-testid") || ""} ${node.className || ""}`.toLowerCase();
+        const role = (lower.includes("user") || lower.includes("human")) ? "User" : "Assistant";
+        msgs.push({ role, text, _el: node });
+      }
+    }
+
     return msgs;
   }
 
