@@ -458,6 +458,33 @@ function bindAuthEvents() {
     setAuthStatus(els.settingsStatus, '', '');
     setAuthStatus(els.apiKeyStatus, '', '');
     els.settingsOverlay.hidden = false;
+
+    // Load account info (tier + storage)
+    try {
+      const resp = await authFetch('/api/account', { method: 'GET' });
+      if (resp && resp.ok) {
+        const acct = await resp.json();
+        const tierBadge = document.getElementById('tierBadge');
+        const tierDesc = document.getElementById('tierDesc');
+        const storageBarFill = document.getElementById('storageBarFill');
+        const storageLabel = document.getElementById('storageLabel');
+
+        tierBadge.textContent = acct.tier === 'premium' ? 'Premium' : 'Free';
+        tierBadge.className = `tier-badge ${acct.tier || 'free'}`;
+        tierDesc.textContent = acct.tier === 'premium'
+          ? 'All file types: images, audio, media, text'
+          : 'Text conversations + text file attachments only';
+
+        const used = Number(acct.storage_used_bytes || 0);
+        const limit = Number(acct.storage_limit_bytes || 0);
+        const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+        storageBarFill.style.width = `${pct}%`;
+        storageLabel.textContent = limit > 0
+          ? `${formatBytes(used)} / ${formatBytes(limit)} used`
+          : `${formatBytes(used)} used`;
+      }
+    } catch {}
+
     // Load API key
     els.apiKeyDisplay.value = 'Loading...';
     try {
@@ -833,6 +860,13 @@ function getBlockDomId(block) {
   return block.source === 'main' ? `message-${block.index}` : '';
 }
 
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+}
+
 function renderStats() {
   const stats = state.dataset.stats || {};
   const parts = [
@@ -840,6 +874,8 @@ function renderStats() {
     `${stats.messages ?? 0} messages`,
     `${stats.codeSnippets ?? 0} code snippets`,
   ];
+  if (stats.attachments > 0) parts.push(`${stats.attachments} files`);
+  if (stats.storageUsed > 0) parts.push(formatBytes(stats.storageUsed));
   els.stats.textContent = parts.join(' · ');
 }
 
@@ -998,6 +1034,7 @@ function renderChat() {
             >★</button>
           </div>
           <div>${renderText(message.text, query)}</div>
+          ${renderMessageAttachments(message.index)}
         </article>
       `;
     })
@@ -1246,6 +1283,21 @@ function renderBookmarkList() {
   });
 
   updateBookmarkTabCount();
+}
+
+function renderMessageAttachments(messageIndex) {
+  const conversation = state.dataset.conversations.find((c) => c.id === state.selectedConversationId);
+  const attachments = (conversation?.attachments || []).filter((a) => a.messageIndex === messageIndex);
+  if (!attachments.length) return '';
+
+  return '<div class="msg-attachments">' + attachments.map((att) => {
+    const url = `/api/files/${att.id}`;
+    if (att.fileCategory === 'image' || att.fileType?.startsWith('image/')) {
+      return `<a href="${url}" target="_blank" class="attachment-thumb"><img src="${url}" alt="${escapeHtml(att.fileName)}" loading="lazy" /><span class="attachment-name">${escapeHtml(att.fileName)}</span></a>`;
+    }
+    const sizeKb = Math.round((att.fileSize || 0) / 1024);
+    return `<a href="${url}" target="_blank" class="attachment-file"><span class="attachment-icon">📎</span><span class="attachment-name">${escapeHtml(att.fileName)}</span><span class="attachment-size">${sizeKb} KB</span></a>`;
+  }).join('') + '</div>';
 }
 
 function renderText(text, highlightQuery) {

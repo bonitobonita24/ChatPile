@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         AI Chat Archiver
 // @namespace    ai-chat-consolidator
-// @version      4.0.0
-// @description  Auto-save AI conversations to your AI Chat Consolidator dashboard
+// @version      5.0.0
+// @description  Auto-save AI conversations with images and files to your AI Chat Consolidator dashboard
 // @match        https://chat.openai.com/*
 // @match        https://chatgpt.com/*
 // @match        https://claude.ai/*
@@ -34,14 +34,16 @@
   // (get it from your dashboard → Settings → Tampermonkey API Key)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const API_URL = "https://your-domain.com";
-  const AUTOSAVE_MS = 3 * 60 * 1000;               // 3 minutes
+  const AUTOSAVE_MS = 3 * 60 * 1000;
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 
-  // ━━━ STORAGE KEYS (do not change) ━━━━━━━━━━━━━━━
+  // ━━━ STORAGE KEYS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const K_API_KEY = "archiver_api_key";
   const K_AUTOSAVE = "archiver_autosave";
   const K_LAST_HASH = "archiver_last_hash";
   const K_COLLAPSED = "archiver_collapsed";
   const K_PANEL_POS = "archiver_panel_pos";
+  const K_CAPTURE_FILES = "archiver_capture_files";
 
   // ━━━ HELPERS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -65,6 +67,8 @@
 
   function getAutosave() { return GM_getValue(K_AUTOSAVE, true); }
   function setAutosave(v) { GM_setValue(K_AUTOSAVE, v); }
+  function getCaptureFiles() { return GM_getValue(K_CAPTURE_FILES, true); }
+  function setCaptureFiles(v) { GM_setValue(K_CAPTURE_FILES, v); }
 
   // ━━━ PLATFORM DETECTION ━━━━━━━━━━━━━━━━━━━━━━━━━
   function detectPlatform() {
@@ -95,20 +99,108 @@
       .trim() || "Untitled";
   }
 
-  // ━━━ EXTRACTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ FILE EXTRACTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function isSmallIcon(img) {
+    const w = img.naturalWidth || img.width || 0;
+    const h = img.naturalHeight || img.height || 0;
+    if (w <= 24 || h <= 24) return true;
+    const cl = (img.className || "") + " " + (img.closest("[class]")?.className || "");
+    return /avatar|icon|logo|emoji|profile/i.test(cl);
+  }
+
+  function fetchAsBase64(url) {
+    return new Promise((resolve) => {
+      GM_xmlhttpRequest({
+        method: "GET", url,
+        responseType: "arraybuffer",
+        timeout: 15000,
+        onload: (res) => {
+          if (res.status < 300) {
+            const bytes = new Uint8Array(res.response);
+            if (bytes.length > MAX_FILE_SIZE) { resolve(null); return; }
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const contentType = res.responseHeaders?.match(/content-type:\s*([^\r\n;]+)/i)?.[1] || "application/octet-stream";
+            resolve({ data: btoa(binary), mimeType: contentType, size: bytes.length });
+          } else { resolve(null); }
+        },
+        onerror: () => resolve(null),
+        ontimeout: () => resolve(null),
+      });
+    });
+  }
+
+  function dataUrlToBase64(dataUrl) {
+    const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (!m) return null;
+    const data = m[2];
+    if (data.length * 0.75 > MAX_FILE_SIZE) return null;
+    return { data, mimeType: m[1], size: Math.floor(data.length * 0.75) };
+  }
+
+  async function extractImagesFromElement(el) {
+    const attachments = [];
+    const images = el.querySelectorAll("img");
+
+    for (const img of images) {
+      if (isSmallIcon(img)) continue;
+      const src = img.src || img.getAttribute("src") || "";
+      if (!src) continue;
+
+      let result = null;
+      if (src.startsWith("data:")) {
+        result = dataUrlToBase64(src);
+      } else if (src.startsWith("http")) {
+        result = await fetchAsBase64(src);
+      }
+
+      if (result) {
+        const ext = result.mimeType.split("/")[1]?.split("+")[0] || "png";
+        attachments.push({
+          fileName: `image_${attachments.length + 1}.${ext}`,
+          mimeType: result.mimeType,
+          data: result.data,
+        });
+      }
+    }
+    return attachments;
+  }
+
+  async function extractFilesFromElement(el) {
+    const attachments = [];
+    // Look for file attachment links
+    const links = el.querySelectorAll('a[download], a[href*="blob:"], a[href*="/file/"], [data-testid*="file"], [class*="attachment"], [class*="file-card"]');
+
+    for (const link of links) {
+      const href = link.href || link.getAttribute("href") || "";
+      const name = link.download || link.textContent?.trim() || link.getAttribute("aria-label") || "file";
+      if (!href || href === "#") continue;
+
+      const result = await fetchAsBase64(href);
+      if (result) {
+        attachments.push({
+          fileName: name.slice(0, 100),
+          mimeType: result.mimeType,
+          data: result.data,
+        });
+      }
+    }
+    return attachments;
+  }
+
+  // ━━━ TEXT + FILE EXTRACTION PER PLATFORM ━━━━━━━━━
   function extractChatGPT() {
     const msgs = [];
     document.querySelectorAll("[data-message-author-role]").forEach((el) => {
       const role = el.getAttribute("data-message-author-role");
       const prose = el.querySelector(".markdown, .prose, [class*='markdown'], [class*='prose']") || el;
       const text = (prose.innerText || "").trim();
-      if (text) msgs.push({ role: role === "user" ? "User" : "Assistant", text });
+      if (text) msgs.push({ role: role === "user" ? "User" : "Assistant", text, _el: el });
     });
     return msgs;
   }
 
   async function extractClaude() {
-    // Scroll to load all virtualized messages
     const scroller = document.querySelector('[class*="overflow-y-auto"]') || document.querySelector("main") || document.documentElement;
     const orig = scroller.scrollTop;
     scroller.scrollTop = 0;
@@ -129,39 +221,33 @@
           const userMsg = turn.querySelector('[data-testid="user-message"]');
           if (userMsg) {
             const text = (userMsg.innerText || "").trim();
-            if (text) msgs.push({ role: "User", text });
+            if (text) msgs.push({ role: "User", text, _el: turn });
           } else {
             const proseEl = turn.querySelector(".font-claude-message") || turn.querySelector('[class*="prose"]') || turn;
             const clone = proseEl.cloneNode(true);
             clone.querySelectorAll('button, [role="button"], svg, form, [class*="action"], [class*="toolbar"], [class*="copy"], [class*="vote"], [class*="footer"], [class*="controls"]').forEach(n => n.remove());
             const text = (clone.innerText || "").trim();
-            if (text && text.length > 10) msgs.push({ role: "Assistant", text });
+            if (text && text.length > 10) msgs.push({ role: "Assistant", text, _el: turn });
           }
         }
       }
     }
 
-    // Fallback: alternating articles
     if (!msgs.length) {
       document.querySelectorAll("main article").forEach((el, i) => {
         const text = (el.innerText || "").trim();
-        if (text) msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text });
+        if (text) msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text, _el: el });
       });
     }
-
     return msgs;
   }
 
   function extractGeneric() {
     const msgs = [];
-    // Try common patterns across AI chat platforms
     const selectors = [
-      '[data-message-author-role]',
-      '[data-testid*="message"]',
-      '[class*="message-row"]',
-      '[class*="chat-message"]',
-      '[class*="turn"]',
-      'main article',
+      '[data-message-author-role]', '[data-testid*="message"]',
+      '[class*="message-row"]', '[class*="chat-message"]',
+      '[class*="turn"]', 'main article',
     ];
 
     for (const sel of selectors) {
@@ -170,27 +256,46 @@
         els.forEach((el, i) => {
           const text = (el.innerText || "").trim();
           if (text && text.length > 5) {
-            msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text });
+            msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text, _el: el });
           }
         });
         if (msgs.length) return msgs;
       }
     }
 
-    // Last resort: dump main content
     const main = document.querySelector("main");
     if (main) {
       const text = (main.innerText || "").trim();
-      if (text) msgs.push({ role: "Conversation", text });
+      if (text) msgs.push({ role: "Conversation", text, _el: main });
     }
     return msgs;
   }
 
-  async function extractMessages() {
+  async function extractAll() {
     const platform = detectPlatform();
-    if (platform === "chatgpt") return extractChatGPT();
-    if (platform === "claudeai") return await extractClaude();
-    return extractGeneric();
+    let rawMsgs;
+    if (platform === "chatgpt") rawMsgs = extractChatGPT();
+    else if (platform === "claudeai") rawMsgs = await extractClaude();
+    else rawMsgs = extractGeneric();
+
+    const messages = [];
+    const attachments = [];
+    const captureFiles = getCaptureFiles();
+
+    for (let i = 0; i < rawMsgs.length; i++) {
+      const msg = rawMsgs[i];
+      messages.push({ role: msg.role, text: msg.text });
+
+      if (captureFiles && msg._el) {
+        const imgs = await extractImagesFromElement(msg._el);
+        const files = await extractFilesFromElement(msg._el);
+        for (const att of [...imgs, ...files]) {
+          attachments.push({ ...att, messageIndex: i });
+        }
+      }
+    }
+
+    return { messages, attachments };
   }
 
   // ━━━ API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -206,7 +311,7 @@
         url: `${API_URL}/api/conversations`,
         headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
         data: JSON.stringify(payload),
-        timeout: 30000,
+        timeout: 60000,
         onload: (res) => {
           if (res.status >= 200 && res.status < 300) {
             try { resolve(JSON.parse(res.responseText)); } catch { resolve({}); }
@@ -230,7 +335,7 @@
     saving = true;
 
     try {
-      const messages = await extractMessages();
+      const { messages, attachments } = await extractAll();
       if (!messages.length) { if (!auto) toast("No messages found."); return; }
 
       const platform = detectPlatform();
@@ -239,19 +344,23 @@
       const hash = simpleHash(JSON.stringify(messages));
 
       if (auto && hash === getLastHash(id)) return;
-      if (!auto) toast("Saving...");
+      if (!auto) toast(attachments.length ? `Saving... (${attachments.length} files)` : "Saving...");
 
-      await pushToApi({
-        id,
-        title,
-        platform,
+      const payload = {
+        id, title, platform,
         url: location.href,
         captured: new Date().toISOString(),
         messages,
-      });
+      };
+
+      if (attachments.length > 0) payload.attachments = attachments;
+
+      const result = await pushToApi(payload);
 
       setLastHash(id, hash);
-      toast(`${auto ? "Auto-saved" : "Saved"}: ${title} (${messages.length} msgs)`);
+      const parts = [`${messages.length} msgs`];
+      if (result.savedAttachments > 0) parts.push(`${result.savedAttachments} files`);
+      toast(`${auto ? "Auto-saved" : "Saved"}: ${title}\n(${parts.join(", ")})`);
     } catch (e) {
       console.error("Save failed:", e);
       toast(`Save failed:\n${e.message}`, 5000);
@@ -295,29 +404,20 @@
 
   function enableDrag(wrap, handle) {
     let dragging = false, startX, startY, origLeft, origTop;
-
     handle.addEventListener("mousedown", (e) => {
-      dragging = true;
-      startX = e.clientX; startY = e.clientY;
+      dragging = true; startX = e.clientX; startY = e.clientY;
       const rect = wrap.getBoundingClientRect();
-      origLeft = rect.left; origTop = rect.top;
-      e.preventDefault();
+      origLeft = rect.left; origTop = rect.top; e.preventDefault();
     });
-
     document.addEventListener("mousemove", (e) => {
       if (!dragging) return;
-      const dx = e.clientX - startX, dy = e.clientY - startY;
-      wrap.style.left = `${origLeft + dx}px`;
-      wrap.style.top = `${origTop + dy}px`;
+      wrap.style.left = `${origLeft + e.clientX - startX}px`;
+      wrap.style.top = `${origTop + e.clientY - startY}px`;
       wrap.style.right = "auto"; wrap.style.bottom = "auto";
     });
-
     document.addEventListener("mouseup", () => {
-      if (!dragging) return;
-      dragging = false;
-      GM_setValue(K_PANEL_POS, JSON.stringify({
-        left: parseInt(wrap.style.left), top: parseInt(wrap.style.top),
-      }));
+      if (!dragging) return; dragging = false;
+      GM_setValue(K_PANEL_POS, JSON.stringify({ left: parseInt(wrap.style.left), top: parseInt(wrap.style.top) }));
     });
   }
 
@@ -370,21 +470,28 @@
     btnSave.onclick = () => save(false);
     content.appendChild(btnSave);
 
+    // Auto-save toggle
     const autoRow = document.createElement("label");
-    Object.assign(autoRow.style, { display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px", userSelect: "none", fontSize: "12px" });
-    const autoCb = document.createElement("input");
-    autoCb.type = "checkbox";
-    autoCb.checked = getAutosave();
+    Object.assign(autoRow.style, { display: "flex", gap: "6px", alignItems: "center", marginBottom: "4px", userSelect: "none", fontSize: "12px" });
+    const autoCb = document.createElement("input"); autoCb.type = "checkbox"; autoCb.checked = getAutosave();
     autoCb.onchange = () => { setAutosave(autoCb.checked); toast(`Auto-save ${autoCb.checked ? "on" : "off"}`); };
-    autoRow.appendChild(autoCb);
-    autoRow.appendChild(document.createTextNode("Auto-save"));
+    autoRow.appendChild(autoCb); autoRow.appendChild(document.createTextNode("Auto-save"));
     content.appendChild(autoRow);
 
+    // Capture files toggle
+    const fileRow = document.createElement("label");
+    Object.assign(fileRow.style, { display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px", userSelect: "none", fontSize: "12px" });
+    const fileCb = document.createElement("input"); fileCb.type = "checkbox"; fileCb.checked = getCaptureFiles();
+    fileCb.onchange = () => { setCaptureFiles(fileCb.checked); toast(`File capture ${fileCb.checked ? "on" : "off"}`); };
+    fileRow.appendChild(fileCb); fileRow.appendChild(document.createTextNode("Capture images & files"));
+    content.appendChild(fileRow);
+
+    // API Key button
     const btnKey = makeButton("Set API Key");
     btnKey.onclick = () => {
       const current = getApiKey();
       const v = prompt("Paste your API Key from Settings → Tampermonkey API Key:", current || "");
-      if (v && v.trim()) { setApiKey(v.trim()); toast("API key saved."); }
+      if (v && v.trim()) { setApiKey(v.trim()); toast("API key saved."); keyStatus.textContent = `Key: ...${v.trim().slice(-8)}`; }
     };
     content.appendChild(btnKey);
 
@@ -423,7 +530,6 @@
     toast("AI Chat Archiver active");
   }, 2000);
 
-  // Autosave loop
   setInterval(async () => {
     if (!getAutosave()) return;
     if (!document.querySelector("main")) return;

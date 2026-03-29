@@ -805,6 +805,87 @@ mark { background: var(--highlight); color: #f0f4ff; }
   min-width: 0;
 }
 
+/* ─── Attachments ───────────────────────────────────────────────────── */
+.msg-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.attachment-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  border: 1px solid #2a3248;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 200px;
+  text-decoration: none;
+  color: var(--muted);
+}
+.attachment-thumb img {
+  max-width: 200px;
+  max-height: 150px;
+  object-fit: cover;
+}
+.attachment-thumb .attachment-name {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-file {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #2a3248;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.attachment-file:hover { border-color: var(--accent); }
+.attachment-icon { font-size: 1rem; }
+.attachment-size { color: var(--muted); font-size: 0.72rem; }
+
+/* ─── Tier / Storage ───────────────────────────────────────────────── */
+.tier-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tier-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.tier-badge.free { background: #2a3248; color: var(--muted); }
+.tier-badge.premium { background: #f9a853; color: #0b1020; }
+.storage-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+.storage-bar {
+  flex: 1;
+  height: 6px;
+  background: #2a3248;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.storage-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
 .auth-links {
   display: flex;
   gap: 0.35rem;
