@@ -23,11 +23,15 @@ build
 
 # Environment files
 .env
+.env.*
 .env.local
 .env.*.local
 
 # Spec Story
 .specstory
+
+# Claude
+.claude
 
 # Documentation
 *.md

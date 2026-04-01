@@ -22,14 +22,19 @@ const s3 = new S3Client({
 const TEXT_MIMES = new Set([
   'text/plain', 'text/markdown', 'text/csv', 'text/html', 'text/css', 'text/javascript',
   'application/json', 'application/xml', 'text/xml', 'application/x-yaml', 'text/yaml',
-  'application/pdf', 'text/x-python', 'text/x-java', 'text/x-c', 'text/x-shellscript',
+  'text/x-python', 'text/x-java', 'text/x-c', 'text/x-shellscript',
   'application/x-sh', 'text/tab-separated-values', 'text/rtf',
+]);
+
+const DOCUMENT_MIMES = new Set([
+  'application/pdf',
 ]);
 
 function categorizeFile(mimeType) {
   if (!mimeType) return 'other';
   const mime = mimeType.toLowerCase();
   if (TEXT_MIMES.has(mime) || mime.startsWith('text/')) return 'text';
+  if (DOCUMENT_MIMES.has(mime)) return 'document';
   if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('audio/')) return 'audio';
   if (mime.startsWith('video/')) return 'video';

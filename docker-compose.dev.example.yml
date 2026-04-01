@@ -44,6 +44,8 @@ services:
       - ./app:/app/app
       - ./server.js:/app/server.js
       - ./db.js:/app/db.js
+      - ./storage.js:/app/storage.js
+      - ./xendit.js:/app/xendit.js
 
     networks:
       - chatpile-dev-net

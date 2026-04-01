@@ -99,8 +99,11 @@ async function deactivatePlan(planId) {
 
 // Verify webhook authenticity — fail closed if token not configured
 function verifyWebhook(callbackToken) {
-  if (!XENDIT_CALLBACK_TOKEN) return false;
-  return callbackToken === XENDIT_CALLBACK_TOKEN;
+  if (!XENDIT_CALLBACK_TOKEN || !callbackToken) return false;
+  const a = Buffer.from(String(callbackToken));
+  const b = Buffer.from(XENDIT_CALLBACK_TOKEN);
+  if (a.length !== b.length) return false;
+  return require('node:crypto').timingSafeEqual(a, b);
 }
 
 function isConfigured() {

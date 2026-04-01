@@ -190,7 +190,10 @@ async function bootstrap() {
   // Handle return from Xendit payment
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('subscription') === 'success') {
-    try { await apiPost('/api/subscription/activate', {}); } catch {}
+    try {
+      const activateResp = await apiPost('/api/subscription/activate', {});
+      if (!activateResp.ok) console.error('Subscription activation failed:', activateResp.error);
+    } catch (e) { console.error('Subscription activation error:', e); }
     window.history.replaceState({}, '', window.location.pathname);
   } else if (urlParams.has('subscription')) {
     window.history.replaceState({}, '', window.location.pathname);
@@ -216,21 +219,30 @@ const EMPTY_DATASET = {
   stats: { conversations: 0, codeSnippets: 0, messages: 0 },
 };
 
+let _listRequestId = 0;
+
 async function loadConversations() {
+  const requestId = ++_listRequestId;
   const params = new URLSearchParams();
   if (state.globalQuery) params.set('q', state.globalQuery);
   if (state.platformFilter !== 'all') params.set('platform', mapPlatformFilter(state.platformFilter));
   params.set('limit', '500');
 
-  const response = await authFetch(`/api/conversations?${params}`, { method: 'GET' });
+  // Fetch conversations and stats in parallel
+  const [response, statsResp] = await Promise.all([
+    authFetch(`/api/conversations?${params}`, { method: 'GET' }),
+    authFetch('/api/stats', { method: 'GET' }),
+  ]);
+
+  // Guard against stale responses
+  if (_listRequestId !== requestId) return;
+
   if (!response || !response.ok) {
     if (!state.dataset) state.dataset = { ...EMPTY_DATASET };
     state.filteredConversations = [];
     return;
   }
   const data = await response.json();
-
-  const statsResp = await authFetch('/api/stats', { method: 'GET' });
   const stats = statsResp && statsResp.ok ? await statsResp.json() : EMPTY_DATASET.stats;
 
   state.dataset = {
@@ -570,7 +582,9 @@ function bindAuthEvents() {
           subStatusLabel.textContent = `Status: ${acct.subscription_status || 'unknown'}`;
         }
       }
-    } catch {}
+    } catch (e) {
+      console.error('Failed to load account info:', e);
+    }
 
     // Load API key
     els.apiKeyDisplay.value = 'Loading...';
@@ -982,10 +996,12 @@ function bindEvents() {
     renderBookmarkList();
   });
 
-  // Add keyboard navigation for search results
+  // Add keyboard navigation for search results (only when not in an input/textarea)
   document.addEventListener('keydown', (e) => {
     if (!state.chatQuery) return;
-    
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
       e.preventDefault();
       moveSearchResult(-1);
@@ -1485,8 +1501,13 @@ function renderMessageAttachments(messageIndex) {
 function renderText(text, highlightQuery) {
   const html = markdownToHtml(text);
   if (!highlightQuery) return html;
-  const pattern = escapeRegex(highlightQuery);
-  return html.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>');
+  // Highlight only in text nodes, not inside HTML tags
+  // Split by tags, apply highlighting only to non-tag parts
+  const pattern = new RegExp(`(${escapeRegex(highlightQuery)})`, 'gi');
+  return html.replace(/(<[^>]*>)|([^<]+)/g, (match, tag, content) => {
+    if (tag) return tag; // preserve HTML tags untouched
+    return content.replace(pattern, '<mark>$1</mark>');
+  });
 }
 
 function markdownToHtml(text) {
@@ -1598,13 +1619,14 @@ function inlineMarkdown(text) {
   // Strikethrough
   html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
   // Images (before links to avoid conflict)
+  const dangerousUri = /^(javascript|vbscript|data):/i;
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
-    if (/^javascript:/i.test(src.trim())) return '';
+    if (dangerousUri.test(src.trim())) return '';
     return `<img src="${src}" alt="${alt}" loading="lazy" style="max-width:100%;border-radius:8px;">`;
   });
   // Links
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, href) => {
-    if (/^javascript:/i.test(href.trim())) return text;
+    if (dangerousUri.test(href.trim())) return text;
     return `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
   });
   return html;

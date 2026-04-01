@@ -33,16 +33,21 @@ jobs:
           context: .
           target: production
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/chatpile:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/chatpile:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/chatpile:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Trigger Komodo staging redeploy
         continue-on-error: true
+        env:
+          WEBHOOK_URL: ${{ secrets.KOMODO_STAGING_WEBHOOK_URL }}
+          GIT_SHA: ${{ github.sha }}
         run: |
-          if [ -n "${{ secrets.KOMODO_STAGING_WEBHOOK_URL }}" ]; then
-            curl -sS -X POST "${{ secrets.KOMODO_STAGING_WEBHOOK_URL }}" \
+          if [ -n "$WEBHOOK_URL" ]; then
+            curl -sS -X POST "$WEBHOOK_URL" \
               -H "Content-Type: application/json" \
               -H "X-GitHub-Event: push" \
-              -d '{"ref":"refs/heads/main","after":"${{ github.sha }}"}' || true
+              -d "{\"ref\":\"refs/heads/main\",\"after\":\"$GIT_SHA\"}" || true
           fi

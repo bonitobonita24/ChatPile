@@ -32,6 +32,8 @@ const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER || 'noreply@localhost';
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
+const COOKIE_NAME = 'chatpile_sid';
+const PASSWORD_MAX_LENGTH = 256;
 const INITIAL_ADMIN_EMAIL = process.env.APP_ADMIN_EMAIL || 'admin@localhost';
 const INITIAL_ADMIN_USERNAME = process.env.APP_ADMIN_USERNAME || 'admin';
 
@@ -41,7 +43,15 @@ if (IS_PRODUCTION && SESSION_SECRET === DEFAULT_SESSION_SECRET) {
 }
 
 // Periodic cleanup of expired auth state (every 15 min)
-setInterval(() => { db.cleanupExpiredAuthState().catch(() => {}); }, 15 * 60 * 1000);
+setInterval(() => { db.cleanupExpiredAuthState().catch((e) => console.error('Auth cleanup error:', e.message)); }, 15 * 60 * 1000);
+
+// Periodic cleanup of stale API key rate limit entries (every 5 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of apiKeyRateLimit) {
+    if (now - entry.windowStart > API_KEY_RATE_WINDOW_MS * 2) apiKeyRateLimit.delete(key);
+  }
+}, 5 * 60 * 1000);
 
 // API key rate limiter (in-memory is fine — this is throughput control, not security state)
 const apiKeyRateLimit = new Map();
@@ -121,9 +131,9 @@ app.post('/api/webhook/xendit', express.json({ limit: '1mb' }), async (req, res)
   }
 });
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(session({
-  name: 'chatpile_sid',
+  name: COOKIE_NAME,
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -156,8 +166,7 @@ app.use((req, res, next) => {
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
 function getClientIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
+  // trust proxy is set, so req.ip already handles X-Forwarded-For
   return req.ip || 'unknown';
 }
 
@@ -231,16 +240,25 @@ async function seedAdmin() {
 
 // ─── Email helper ─────────────────────────────────────────────────────────────
 
+// Reuse a single SMTP transport (avoid creating per-email)
+let smtpTransport = null;
+function getSmtpTransport() {
+  if (!smtpTransport && nodemailer && SMTP_HOST) {
+    smtpTransport = nodemailer.createTransport({
+      host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+  }
+  return smtpTransport;
+}
+
 async function sendEmail({ to, subject, text }) {
-  if (!nodemailer || !SMTP_HOST) {
+  const transport = getSmtpTransport();
+  if (!transport) {
     console.log(`\n[EMAIL - no SMTP configured]\nTo: ${to}\nSubject: ${subject}\n${text}\n`);
     return;
   }
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465,
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-  await transporter.sendMail({ from: SMTP_FROM, to, subject, text });
+  await transport.sendMail({ from: SMTP_FROM, to, subject, text });
 }
 
 function generateVerificationCode() { return String(crypto.randomInt(100000, 999999)); }
@@ -291,15 +309,28 @@ app.post('/api/auth/login', async (req, res) => {
     if (!(await verifyPassword(password, user))) { await fail(); return; }
 
     await clearAttempts(ip);
-    req.session.user = { userId: user.id, email: user.email, username: user.username, tier: user.tier };
+    // Regenerate session to prevent session fixation attacks
+    const userData = { userId: user.id, email: user.email, username: user.username, tier: user.tier };
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) { reject(err); return; }
+        req.session.user = userData;
+        resolve();
+      });
+    });
     res.json({ ok: true, email: user.email, username: user.username, tier: user.tier });
-  } catch {
+  } catch (e) {
+    console.error('Login error:', e.message);
     res.status(500).json({ ok: false, error: 'Authentication failed.' });
   }
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => { res.clearCookie('chatpile_sid'); res.json({ ok: true }); });
+  req.session.destroy((err) => {
+    if (err) console.error('Session destroy error:', err.message);
+    res.clearCookie(COOKIE_NAME);
+    res.json({ ok: true });
+  });
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -314,6 +345,7 @@ app.post('/api/auth/register', async (req, res) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) { res.status(400).json({ ok: false, error: 'Invalid email address.' }); return; }
   if (!/^[a-zA-Z0-9_-]{3,30}$/.test(usernameTrim)) { res.status(400).json({ ok: false, error: 'Username must be 3–30 characters (letters, numbers, _ or -).' }); return; }
   if (password.length < 12) { res.status(400).json({ ok: false, error: 'Password must be at least 12 characters.' }); return; }
+  if (password.length > PASSWORD_MAX_LENGTH) { res.status(400).json({ ok: false, error: `Password must not exceed ${PASSWORD_MAX_LENGTH} characters.` }); return; }
 
   try {
     const existing = await db.findUserByEmail(emailNorm);
@@ -331,7 +363,8 @@ app.post('/api/auth/register', async (req, res) => {
       text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not register for ChatPile App, ignore this email.`,
     });
     res.json({ ok: true });
-  } catch {
+  } catch (e) {
+    console.error('Registration error:', e.message);
     res.status(500).json({ ok: false, error: 'Registration failed. Please try again.' });
   }
 });
@@ -350,7 +383,9 @@ app.post('/api/auth/verify-email', async (req, res) => {
     await db.deletePendingVerification(emailNorm);
     res.status(400).json({ ok: false, error: 'Too many failed attempts. Please register again.' }); return;
   }
-  if (pending.code !== code.trim()) {
+  const codeA = Buffer.from(pending.code);
+  const codeB = Buffer.from(code.trim());
+  if (codeA.length !== codeB.length || !crypto.timingSafeEqual(codeA, codeB)) {
     await db.incrementVerificationAttempts(emailNorm);
     res.status(400).json({ ok: false, error: 'Incorrect verification code.' }); return;
   }
@@ -366,9 +401,10 @@ app.post('/api/auth/verify-email', async (req, res) => {
     });
     await db.deletePendingVerification(emailNorm);
 
-    req.session.user = { userId: newUser.id, email: newUser.email, username: newUser.username };
+    req.session.user = { userId: newUser.id, email: newUser.email, username: newUser.username, tier: newUser.tier || 'free' };
     res.json({ ok: true, email: newUser.email, username: newUser.username });
-  } catch {
+  } catch (e) {
+    console.error('Verify-email error:', e.message);
     res.status(500).json({ ok: false, error: 'Verification failed. Please try again.' });
   }
 });
@@ -385,7 +421,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
   await db.setPendingVerification(emailNorm, { code, username: pending.username, salt: pending.salt, hash: pending.hash, expiresAt: Date.now() + VERIFICATION_TTL_MS });
   try {
     await sendEmail({ to: emailNorm, subject: 'Your ChatPile App verification code', text: `Your new verification code is: ${code}\n\nThis code expires in 15 minutes.` });
-  } catch {}
+  } catch (e) { console.error('Resend verification email error:', e.message); }
 });
 
 app.post('/api/auth/forgot-password', async (req, res) => {
@@ -403,13 +439,14 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       to: emailNorm, subject: 'Reset your ChatPile App password',
       text: `Click the link below to reset your password. This link expires in 1 hour.\n\n${APP_URL}/?reset=${token}\n\nIf you did not request this, ignore this email.`,
     });
-  } catch {}
+  } catch (e) { console.error('Forgot-password email error:', e.message); }
 });
 
 app.post('/api/auth/reset-password', async (req, res) => {
   const { token, newPassword } = req.body || {};
   if (typeof token !== 'string' || typeof newPassword !== 'string') { res.status(400).json({ ok: false, error: 'Invalid payload.' }); return; }
   if (newPassword.length < 12) { res.status(400).json({ ok: false, error: 'Password must be at least 12 characters.' }); return; }
+  if (newPassword.length > PASSWORD_MAX_LENGTH) { res.status(400).json({ ok: false, error: `Password must not exceed ${PASSWORD_MAX_LENGTH} characters.` }); return; }
 
   const entry = await db.getPasswordResetToken(token);
   if (!entry) {
@@ -431,6 +468,7 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') { res.status(400).json({ ok: false, error: 'Invalid payload.' }); return; }
   if (newPassword.length < 12) { res.status(400).json({ ok: false, error: 'New password must be at least 12 characters.' }); return; }
+  if (newPassword.length > PASSWORD_MAX_LENGTH) { res.status(400).json({ ok: false, error: `Password must not exceed ${PASSWORD_MAX_LENGTH} characters.` }); return; }
   if (currentPassword === newPassword) { res.status(400).json({ ok: false, error: 'New password must be different from current password.' }); return; }
 
   try {
@@ -491,9 +529,9 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
           res.json({ ok: true, tier: 'premium' });
           return;
         }
-      } catch {}
+      } catch (e) { console.log('Existing plan check failed:', e.message); }
       // Deactivate any stale/pending/expired plan before creating fresh
-      try { await xendit.deactivatePlan(user.xendit_plan_id); } catch {}
+      try { await xendit.deactivatePlan(user.xendit_plan_id); } catch (e) { console.log('Plan deactivation skipped:', e.message); }
     }
 
     const customer = await xendit.getOrCreateCustomer({ userId: user.id, email: user.email, username: user.username });
@@ -760,7 +798,8 @@ app.get('/api/files/:attachmentId', requireAuth, async (req, res) => {
 
     const file = await storage.getFile(attachment.storage_path);
     res.set('Content-Type', file.contentType || 'application/octet-stream');
-    res.set('Content-Disposition', `inline; filename="${attachment.file_name}"`);
+    const safeName = attachment.file_name.replace(/["\\\r\n]/g, '_');
+    res.set('Content-Disposition', `inline; filename="${safeName}"`);
     if (file.contentLength) res.set('Content-Length', String(file.contentLength));
     file.stream.pipe(res);
   } catch (e) {
@@ -801,10 +840,18 @@ app.get('/api/search', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Error handler ────────────────────────────────────────────────────────
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ ok: false, error: 'Internal server error.' });
+});
+
 // ─── Static + SPA ─────────────────────────────────────────────────────────────
 
-app.use(express.static(path.join(process.cwd(), 'app')));
-app.get('*', (_req, res) => res.sendFile(path.join(process.cwd(), 'app', 'index.html')));
+app.use(express.static(path.join(__dirname, 'app')));
+app.get('*', (_req, res) => res.sendFile(path.join(__dirname, 'app', 'index.html')));
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 

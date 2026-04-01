@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "PORT=4173 node server.js",
-    "build": "echo 'No build step needed — data served from SQLite'",
+    "build": "echo 'No build step needed — static frontend served by Express'",
     "reset-password": "node scripts/reset-admin-password.mjs",
     "test": "node scripts/browser-test.mjs"
   },
@@ -16,6 +16,9 @@
     "helmet": "^8.1.0",
     "nodemailer": "^6.10.1",
     "pg": "^8.20.0"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [],
   "author": "",

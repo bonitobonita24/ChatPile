@@ -4,6 +4,12 @@ const crypto = require('node:crypto');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://aichats:aichats@localhost:5432/aichats',
   max: 10,
+  connectionTimeoutMillis: 5000,
+  statement_timeout: 30000,
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected database pool error:', err.message);
 });
 
 async function migrate() {
@@ -63,7 +69,7 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id, captured DESC);
       CREATE INDEX IF NOT EXISTS idx_conversations_platform ON conversations(user_id, platform);
       CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      -- idx_users_email omitted: UNIQUE constraint on email already creates an index
     `);
 
     // v1.1: persistent auth state tables (replaces in-memory Maps)
@@ -97,7 +103,8 @@ async function migrate() {
 
     // v2: tier, storage, attachments
     const addCol = async (table, col, def) => {
-      try { await client.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch {}
+      try { await client.query(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); }
+      catch (e) { if (e.code !== '42701') throw e; } // 42701 = duplicate_column
     };
     await addCol('users', 'tier', "TEXT NOT NULL DEFAULT 'free'");
     await addCol('users', 'storage_used_bytes', 'BIGINT NOT NULL DEFAULT 0');
@@ -130,6 +137,13 @@ async function migrate() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_messages_text_fts ON messages USING GIN(to_tsvector('english', text));
       CREATE INDEX IF NOT EXISTS idx_conversations_title_fts ON conversations USING GIN(to_tsvector('english', title));
+    `);
+
+    // v4: missing indexes for common queries
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
+      CREATE INDEX IF NOT EXISTS idx_snippets_user ON code_snippets(user_id);
+      CREATE INDEX IF NOT EXISTS idx_users_xendit_plan ON users(xendit_plan_id) WHERE xendit_plan_id IS NOT NULL;
     `);
   } finally {
     client.release();
@@ -262,19 +276,38 @@ async function upsertConversation({ userId, id, title, platform, url, captured, 
     await client.query('DELETE FROM messages WHERE conversation_id = $1 AND user_id = $2', [id, userId]);
     await client.query('DELETE FROM code_snippets WHERE conversation_id = $1 AND user_id = $2', [id, userId]);
 
-    for (let i = 0; i < messages.length; i++) {
+    // Batch insert messages (chunks of 100 to stay within PG parameter limits)
+    for (let batch = 0; batch < messages.length; batch += 100) {
+      const chunk = messages.slice(batch, batch + 100);
+      const values = [];
+      const params = [];
+      chunk.forEach((msg, i) => {
+        const offset = i * 5;
+        values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5})`);
+        params.push(id, userId, msg.role, msg.text, batch + i);
+      });
       await client.query(
-        'INSERT INTO messages (conversation_id, user_id, role, text, sort_order) VALUES ($1, $2, $3, $4, $5)',
-        [id, userId, messages[i].role, messages[i].text, i]
+        `INSERT INTO messages (conversation_id, user_id, role, text, sort_order) VALUES ${values.join(', ')}`,
+        params
       );
     }
 
     const snippets = extractCodeSnippets(messages);
-    for (const s of snippets) {
-      await client.query(
-        'INSERT INTO code_snippets (conversation_id, user_id, message_index, role, language, code, detected) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [id, userId, s.messageIndex, s.role, s.language, s.code, s.detected]
-      );
+    if (snippets.length > 0) {
+      for (let batch = 0; batch < snippets.length; batch += 100) {
+        const chunk = snippets.slice(batch, batch + 100);
+        const values = [];
+        const params = [];
+        chunk.forEach((s, i) => {
+          const offset = i * 7;
+          values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`);
+          params.push(id, userId, s.messageIndex, s.role, s.language, s.code, s.detected);
+        });
+        await client.query(
+          `INSERT INTO code_snippets (conversation_id, user_id, message_index, role, language, code, detected) VALUES ${values.join(', ')}`,
+          params
+        );
+      }
     }
 
     await client.query('COMMIT');
@@ -369,30 +402,36 @@ async function getStats(userId) {
 }
 
 async function searchMessages(userId, query, { limit = 50 } = {}) {
-  // Use full-text search with fallback to ILIKE for short/special queries
-  const tsQuery = query.trim().split(/\s+/).filter(Boolean).join(' & ');
-  const useFts = tsQuery.length > 0;
+  // Use websearch_to_tsquery (PG 11+) which safely handles user input
+  // including special chars like C++, node.js, &, !, etc.
+  const trimmed = query.trim();
+  if (!trimmed) return [];
 
-  const { rows } = useFts
-    ? await pool.query(`
-        SELECT m.conversation_id, m.role, m.text, m.sort_order,
-               c.title AS conversation_title, c.platform, c.captured
-        FROM messages m
-        JOIN conversations c ON c.id = m.conversation_id AND c.user_id = m.user_id
-        WHERE m.user_id = $1 AND to_tsvector('english', m.text) @@ to_tsquery('english', $2)
-        ORDER BY c.captured DESC
-        LIMIT $3
-      `, [userId, tsQuery, limit])
-    : await pool.query(`
-        SELECT m.conversation_id, m.role, m.text, m.sort_order,
-               c.title AS conversation_title, c.platform, c.captured
-        FROM messages m
-        JOIN conversations c ON c.id = m.conversation_id AND c.user_id = m.user_id
-        WHERE m.user_id = $1 AND m.text ILIKE $2
-        ORDER BY c.captured DESC
-        LIMIT $3
-      `, [userId, `%${query}%`, limit]);
-  return rows;
+  try {
+    const { rows } = await pool.query(`
+      SELECT m.conversation_id, m.role, m.text, m.sort_order,
+             c.title AS conversation_title, c.platform, c.captured,
+             ts_rank(to_tsvector('english', m.text), websearch_to_tsquery('english', $2)) AS rank
+      FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id AND c.user_id = m.user_id
+      WHERE m.user_id = $1 AND to_tsvector('english', m.text) @@ websearch_to_tsquery('english', $2)
+      ORDER BY rank DESC, c.captured DESC
+      LIMIT $3
+    `, [userId, trimmed, limit]);
+    return rows;
+  } catch {
+    // Fallback to ILIKE if FTS fails (e.g. single character queries)
+    const { rows } = await pool.query(`
+      SELECT m.conversation_id, m.role, m.text, m.sort_order,
+             c.title AS conversation_title, c.platform, c.captured
+      FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id AND c.user_id = m.user_id
+      WHERE m.user_id = $1 AND m.text ILIKE $2
+      ORDER BY c.captured DESC
+      LIMIT $3
+    `, [userId, `%${trimmed}%`, limit]);
+    return rows;
+  }
 }
 
 // ─── Attachment CRUD ─────────────────────────────────────────────────────────
@@ -438,28 +477,24 @@ async function subtractStorageUsed(userId, bytes) {
 }
 
 async function getUserAccount(userId) {
+  // Lazy expiration: atomically downgrade cancelled subscriptions past their expiry
+  // The UPDATE ... RETURNING pattern avoids read-then-write race conditions
+  const { rows: expired } = await pool.query(
+    `UPDATE users SET tier = 'free', storage_tier = 0, storage_limit_bytes = 0, subscription_status = 'expired'
+     WHERE id = $1 AND subscription_status = 'cancelled' AND subscription_expires_at IS NOT NULL AND subscription_expires_at < NOW()
+     RETURNING id, email, username, role, tier, storage_tier, storage_used_bytes, storage_limit_bytes,
+       xendit_plan_id, subscription_status, subscription_expires_at, created_at`,
+    [userId]
+  );
+  if (expired.length > 0) return expired[0];
+
   const { rows } = await pool.query(
     `SELECT id, email, username, role, tier, storage_tier, storage_used_bytes, storage_limit_bytes,
      xendit_plan_id, subscription_status, subscription_expires_at, created_at
      FROM users WHERE id = $1`,
     [userId]
   );
-  const user = rows[0];
-  if (!user) return null;
-
-  // Lazy expiration: downgrade cancelled subscriptions past their expiry
-  if (user.subscription_status === 'cancelled' && user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
-    await pool.query(
-      "UPDATE users SET tier = 'free', storage_tier = 0, storage_limit_bytes = 0, subscription_status = 'expired' WHERE id = $1",
-      [userId]
-    );
-    user.tier = 'free';
-    user.storage_tier = 0;
-    user.storage_limit_bytes = 0;
-    user.subscription_status = 'expired';
-  }
-
-  return user;
+  return rows[0] || null;
 }
 
 // ─── Subscription helpers ────────────────────────────────────────────────────

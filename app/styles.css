@@ -73,9 +73,6 @@ header p { margin: 0.35rem 0 0; color: var(--muted); }
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-}
-
-.auth-card {
   position: relative;
 }
 .auth-card h2 {
@@ -1005,4 +1002,37 @@ mark { background: var(--highlight); color: #f0f4ff; }
 @media (max-width: 1280px) {
   .layout { grid-template-columns: 260px 1fr; }
   .code-panel { grid-column: 1 / -1; max-height: 260px; }
+}
+
+@media (max-width: 700px) {
+  .layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: calc(100vh - 96px);
+  }
+  .conversations-panel { max-height: 40vh; }
+  .chat-panel { min-height: 50vh; }
+  .code-panel { max-height: 260px; }
+  header { padding-right: 1.2rem; }
+  .header-actions { position: static; margin-top: 0.5rem; }
+}
+
+/* Focus indicators for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.conversation-list li:focus-visible,
+.code-list li:focus-visible,
+.bookmark-list li:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
